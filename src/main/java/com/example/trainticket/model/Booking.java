@@ -17,10 +17,10 @@ public class Booking {
     @Getter
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "train_id")
     @Getter
-    private Train train;
+    @ManyToOne
+    @JoinColumn(name = "travel_id")
+    private Travel travel;
 
     @ManyToOne
     @JoinColumn(name = "route_id")
@@ -41,10 +41,14 @@ public class Booking {
     private LocalDate travelDate;
 
 
-    public Booking(Train train, Route route, LocalDate travelDate, User user) {
-        this.train = train;
+    public Booking(Travel travel, Route route, User user) {
+        this.travel = travel;
         this.route = route;
-        this.travelDate = travelDate;
+        this.travelDate = travel.getTravelDate();
         this.user = user;
+    }
+
+    public Train getTrain() {
+        return travel.getTrain();
     }
 }

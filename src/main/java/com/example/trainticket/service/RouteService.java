@@ -18,7 +18,7 @@ public class RouteService {
 
     @Transactional
     public Route createRoute(List<Station> stations) {
-        List<Route> allRoutes = routeRepository.findAll();
+        List<Route> allRoutes = routeRepository.findAllWithStations();
         Route existing = findMatching(allRoutes, stations);
         if (existing != null) return existing;
 

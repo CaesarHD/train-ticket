@@ -3,11 +3,9 @@ package com.example.trainticket.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Table(name = "trains")
 @EqualsAndHashCode(of = "id")
@@ -26,6 +24,7 @@ public class Train {
     @Setter
     private Integer capacity;
 
+    @Getter
     @ManyToOne
     @JoinColumn(name = "route_id")
     private Route route;
@@ -39,13 +38,6 @@ public class Train {
     private Map<Station, LocalDateTime> arrivals;
 
     @Getter
-    @ElementCollection
-    @CollectionTable(name = "route_seats", joinColumns = @JoinColumn(name = "train_id"))
-    @MapKeyJoinColumn(name = "route_id")
-    @Column(name = "route_seats")
-    private Map<Route, Integer> routeSeats;
-
-    @Getter
     @Setter
     @ElementCollection
     @CollectionTable(name = "train_stop_durations", joinColumns = @JoinColumn(name = "train_id"))
@@ -53,9 +45,13 @@ public class Train {
     @Column(name = "stop_minutes")
     private Map<Station, Integer> stopDurations;
 
-    @OneToMany(mappedBy = "train")
-    private List<Booking> bookings;
-
+    @Getter
+    @Setter
+    @ElementCollection
+    @CollectionTable(name = "train_operating_days", joinColumns = @JoinColumn(name = "train_id"))
+    @Column(name = "day_of_week")
+    @Enumerated(EnumType.STRING)
+    private Set<DayOfWeek> operatingDays;
 
     public Train(String trainCode, Integer capacity, Route route) {
         this.trainCode = trainCode;
@@ -63,8 +59,8 @@ public class Train {
         this.route = route;
 
         arrivals = new HashMap<>();
-        routeSeats = new HashMap<>();
         stopDurations = new HashMap<>();
+        operatingDays = new HashSet<>();
     }
 
     public LocalDateTime getArrivalTimeFrom(Station station) {
@@ -76,10 +72,6 @@ public class Train {
         if (arrival == null) return null;
         Integer stop = stopDurations.getOrDefault(station, 0);
         return arrival.plusMinutes(stop);
-    }
-
-    public void bookSeat(Route route) {
-        routeSeats.merge(route, 1, Integer::sum);
     }
 
     public boolean isSubroute(Route route) {

@@ -7,10 +7,10 @@ routes:
   - ["Satu Mare", "Baia Mare", "Dej", "Gherla", "Cluj-Napoca", "Huedin", "Oradea"]
 
 trains:
-  - {code: "TRA-001", capacity: 200, routeIndex: 0, arrivals: {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:45", "Sighisoara": "08:30", "Brasov": "10:00", "Sinaia": "11:00", "Ploiesti": "12:00", "Bucuresti": "13:00"}, stops: {"Cluj-Napoca": 0, "Turda": 5, "Medias": 5, "Sighisoara": 5, "Brasov": 10, "Sinaia": 5, "Ploiesti": 5, "Bucuresti": 0}}
-  - {code: "TRA-002", capacity: 150, routeIndex: 1, arrivals: {"Dej": "05:00", "Gherla": "05:25", "Cluj-Napoca": "06:00", "Turda": "06:35", "Alba Iulia": "07:30", "Sibiu": "08:15"}, stops: {"Dej": 0, "Gherla": 2, "Cluj-Napoca": 5, "Turda": 2, "Alba Iulia": 2, "Sibiu": 0}}
-  - {code: "TRA-003", capacity: 180, routeIndex: 2, arrivals: {"Oradea": "07:00", "Huedin": "08:00", "Cluj-Napoca": "08:45", "Turda": "09:20", "Medias": "10:30", "Sighisoara": "11:15"}, stops: {"Oradea": 0, "Huedin": 2, "Cluj-Napoca": 5, "Turda": 2, "Medias": 2, "Sighisoara": 0}}
-  - {code: "TRA-004", capacity: 160, routeIndex: 3, arrivals: {"Satu Mare": "06:00", "Baia Mare": "06:45", "Dej": "08:00", "Gherla": "08:30", "Cluj-Napoca": "09:05", "Huedin": "09:55", "Oradea": "10:45"}, stops: {"Satu Mare": 0, "Baia Mare": 3, "Dej": 5, "Gherla": 2, "Cluj-Napoca": 5, "Huedin": 2, "Oradea": 0}}
+  - {code: "TRA-001", capacity: 200, routeIndex: 0, operatingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"], arrivals: {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:45", "Sighisoara": "08:30", "Brasov": "10:00", "Sinaia": "11:00", "Ploiesti": "12:00", "Bucuresti": "13:00"}, stops: {"Cluj-Napoca": 0, "Turda": 5, "Medias": 5, "Sighisoara": 5, "Brasov": 10, "Sinaia": 5, "Ploiesti": 5, "Bucuresti": 0}}
+  - {code: "TRA-002", capacity: 150, routeIndex: 1, operatingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"], arrivals: {"Dej": "05:00", "Gherla": "05:25", "Cluj-Napoca": "06:00", "Turda": "06:35", "Alba Iulia": "07:30", "Sibiu": "08:15"}, stops: {"Dej": 0, "Gherla": 2, "Cluj-Napoca": 5, "Turda": 2, "Alba Iulia": 2, "Sibiu": 0}}
+  - {code: "TRA-003", capacity: 180, routeIndex: 2, operatingDays: ["MONDAY", "WEDNESDAY", "FRIDAY", "SATURDAY"], arrivals: {"Oradea": "07:00", "Huedin": "08:00", "Cluj-Napoca": "08:45", "Turda": "09:20", "Medias": "10:30", "Sighisoara": "11:15"}, stops: {"Oradea": 0, "Huedin": 2, "Cluj-Napoca": 5, "Turda": 2, "Medias": 2, "Sighisoara": 0}}
+  - {code: "TRA-004", capacity: 160, routeIndex: 3, operatingDays: ["SATURDAY", "SUNDAY"], arrivals: {"Satu Mare": "06:00", "Baia Mare": "06:45", "Dej": "08:00", "Gherla": "08:30", "Cluj-Napoca": "09:05", "Huedin": "09:55", "Oradea": "10:45"}, stops: {"Satu Mare": 0, "Baia Mare": 3, "Dej": 5, "Gherla": 2, "Cluj-Napoca": 5, "Huedin": 2, "Oradea": 0}}
 
 users:
   - {email: "test@example.com", name: "Test User"}

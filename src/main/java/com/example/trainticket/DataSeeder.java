@@ -15,8 +15,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.yaml.snakeyaml.Yaml;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +36,6 @@ public class DataSeeder implements CommandLineRunner {
     @Transactional
     @SuppressWarnings("unchecked")
     public void run(String... args) throws Exception {
-        if (trainRepository.findByTrainCode("TRA-001").isPresent()) return;
-
         Map<String, Object> data;
         try (var is = new ClassPathResource("seed-data.yml").getInputStream()) {
             data = new Yaml().load(is);
@@ -47,8 +47,13 @@ public class DataSeeder implements CommandLineRunner {
         var userDefs = (List<Map<String, String>>) data.get("users");
 
         Map<String, Station> stationMap = new LinkedHashMap<>();
+        for (Station s : stationRepository.findByNameIn(stationNames)) {
+            stationMap.put(s.getName(), s);
+        }
         for (var name : stationNames) {
-            stationMap.put(name, stationRepository.save(new Station(name)));
+            if (!stationMap.containsKey(name)) {
+                stationMap.put(name, stationRepository.save(new Station(name)));
+            }
         }
 
         List<Route> routeList = new ArrayList<>();
@@ -58,10 +63,13 @@ public class DataSeeder implements CommandLineRunner {
 
         for (var td : trainDefs) {
             var code = (String) td.get("code");
+            if (trainRepository.findByTrainCode(code).isPresent()) continue;
+
             var capacity = (int) td.get("capacity");
             var ri = (int) td.get("routeIndex");
             var arrivalsRaw = (Map<String, String>) td.get("arrivals");
             var stopsRaw = (Map<String, Integer>) td.get("stops");
+            var daysRaw = (List<String>) td.get("operatingDays");
 
             Map<Station, LocalDateTime> arrivals = new LinkedHashMap<>();
             for (var e : arrivalsRaw.entrySet()) {
@@ -77,12 +85,20 @@ public class DataSeeder implements CommandLineRunner {
             Train train = new Train(code, capacity, routeList.get(ri));
             train.setArrivals(arrivals);
             train.setStopDurations(stops);
+            if (daysRaw != null) {
+                var days = EnumSet.noneOf(DayOfWeek.class);
+                for (var d : daysRaw) days.add(DayOfWeek.valueOf(d));
+                train.setOperatingDays(days);
+            }
             trainRepository.save(train);
         }
 
         if (userDefs != null) {
             for (var ud : userDefs) {
-                userRepository.save(new User(ud.get("email"), ud.get("name")));
+                var email = ud.get("email");
+                if (userRepository.findByEmail(email).isEmpty()) {
+                    userRepository.save(new User(email, ud.get("name")));
+                }
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.example.trainticket.service;
 
+import com.example.trainticket.dto.BookingRequest;
+import com.example.trainticket.dto.BookingResponse;
 import com.example.trainticket.model.*;
 import com.example.trainticket.repository.*;
 import jakarta.persistence.EntityManager;
@@ -11,7 +13,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -61,22 +65,29 @@ class BookingServiceTest {
 
         routeService.createRoute(List.of(dej, cluj, turda, medias, sighisoara, brasov));
         Route trainRoute = routeService.createRoute(List.of(dej, medias, sighisoara));
-        trainRepository.save(new Train("T100", 100, trainRoute));
+        var train = new Train("T100", 100, trainRoute);
+        train.setOperatingDays(EnumSet.allOf(DayOfWeek.class));
+        trainRepository.save(train);
 
         alice = userRepository.save(new User("alice@mail.com", "Alice"));
     }
 
+    private BookingRequest req(String trainCode, String dep, String dest, LocalDate date, String email) {
+        return new BookingRequest(trainCode, dep, dest, date, email, email);
+    }
+
     @Test
     void bookTicket_success() {
-        Booking result = bookingService.bookTicket("T100", "Dej", "Sighisoara", LocalDate.now(), alice.getId());
+        BookingResponse result = bookingService.bookTicket(
+                req("T100", "Dej", "Sighisoara", LocalDate.now(), "alice@mail.com"));
 
-        assertNotNull(result.getId());
-        assertEquals("Alice", result.getUser().getName());
+        assertNotNull(result.id());
+        assertEquals("Alice", result.userName());
 
         entityManager.flush();
         entityManager.clear();
 
-        Booking saved = bookingRepository.findById(result.getId()).orElseThrow();
+        Booking saved = bookingRepository.findById(result.id()).orElseThrow();
         assertNotNull(saved);
         assertEquals("T100", saved.getTrain().getTrainCode());
         assertEquals("Dej", saved.getRoute().getStations().getFirst().getName());
@@ -86,35 +97,40 @@ class BookingServiceTest {
     @Test
     void bookTicket_throwsWhenTrainNotFound() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("WRONG", "Cluj-Napoca", "Sighisoara", LocalDate.now(), alice.getId()));
+                () -> bookingService.bookTicket(
+                        req("WRONG", "Dej", "Sighisoara", LocalDate.now(), "alice@mail.com")));
         assertEquals("Train not found: WRONG", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenDepartureStationNotFound() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "XXX", "Sighisoara", LocalDate.now(), alice.getId()));
+                () -> bookingService.bookTicket(
+                        req("T100", "XXX", "Sighisoara", LocalDate.now(), "alice@mail.com")));
         assertEquals("Station not found: XXX", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenArrivalStationNotFound() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "Cluj-Napoca", "YYY", LocalDate.now(), alice.getId()));
+                () -> bookingService.bookTicket(
+                        req("T100", "Dej", "YYY", LocalDate.now(), "alice@mail.com")));
         assertEquals("Station not found: YYY", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenNoRouteBetweenStations() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "Satu Mare", "Sinaia", LocalDate.now(), alice.getId()));
+                () -> bookingService.bookTicket(
+                        req("T100", "Satu Mare", "Sinaia", LocalDate.now(), "alice@mail.com")));
         assertEquals("No route from Satu Mare to Sinaia", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenRouteNotSubroute() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "Dej", "Cluj-Napoca", LocalDate.now(), alice.getId()));
+                () -> bookingService.bookTicket(
+                        req("T100", "Dej", "Cluj-Napoca", LocalDate.now(), "alice@mail.com")));
         assertEquals("Route is not a subroute of the train's route", ex.getReason());
     }
 
@@ -122,12 +138,65 @@ class BookingServiceTest {
     @Test
     void bookTicket_throwsWhenNoAvailableSeats() {
         for (int i = 0; i < 100; i++) {
-            User user = userRepository.save(new User(i + "@mail.com", "name" + i));
-            bookingService.bookTicket("T100", "Medias", "Sighisoara", LocalDate.now(), user.getId());
+            bookingService.bookTicket(
+                    req("T100", "Medias", "Sighisoara", LocalDate.now(), i + "@mail.com"));
         }
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "Medias", "Sighisoara", LocalDate.now(), alice.getId()));
+                () -> bookingService.bookTicket(
+                        req("T100", "Medias", "Sighisoara", LocalDate.now(), "full@mail.com")));
         assertEquals("No available seats for this route", ex.getReason());
+    }
+
+
+    @Test
+    void bookTicket_throwsWhenDateInPast() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookingService.bookTicket(
+                        req("T100", "Dej", "Sighisoara", yesterday, "alice@mail.com")));
+        assertEquals("Not a valid date" + yesterday, ex.getReason());
+    }
+
+    @Test
+    void bookTicket_throwsWhenDateMoreThanOneYearAhead() {
+        LocalDate farFuture = LocalDate.now().plusYears(2);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookingService.bookTicket(
+                        req("T100", "Dej", "Sighisoara", farFuture, "alice@mail.com")));
+        assertEquals("Not a valid date" + farFuture, ex.getReason());
+    }
+
+    @Test
+    void bookTicket_succeedsWhenOperatingDay() {
+        var a = stationRepository.save(new Station("DepA"));
+        var b = stationRepository.save(new Station("ArrB"));
+        routeService.createRoute(List.of(a, b));
+        var train = new Train("T-OPDAY", 50, routeService.createRoute(List.of(a, b)));
+        train.setOperatingDays(EnumSet.of(DayOfWeek.MONDAY));
+        trainRepository.save(train);
+
+        BookingResponse result = bookingService.bookTicket(
+                req("T-OPDAY", "DepA", "ArrB", LocalDate.of(2026, 5, 11), "opday@mail.com"));
+
+        assertNotNull(result.id());
+        assertEquals("opday@mail.com", result.userName());
+    }
+
+    @Test
+    void bookTicket_throwsWhenNotOperatingDay() {
+        var a = stationRepository.save(new Station("DepC"));
+        var b = stationRepository.save(new Station("ArrD"));
+        routeService.createRoute(List.of(a, b));
+        var train = new Train("T-NOPDAY", 50, routeService.createRoute(List.of(a, b)));
+        train.setOperatingDays(EnumSet.of(DayOfWeek.MONDAY));
+        trainRepository.save(train);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> bookingService.bookTicket(
+                        req("T-NOPDAY", "DepC", "ArrD", LocalDate.of(2026, 5, 12), "nopday@mail.com")));
+        assertEquals("Train T-NOPDAY does not operate on TUESDAY", ex.getReason());
     }
 }

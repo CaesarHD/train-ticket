@@ -1,30 +1,50 @@
 package com.example.trainticket.validation;
 
 import com.example.trainticket.model.Route;
-import com.example.trainticket.model.Station;
 import com.example.trainticket.model.Train;
-import com.example.trainticket.repository.RouteRepository;
+import com.example.trainticket.model.Travel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+
+import static com.example.trainticket.util.Constants.bookingThreshold;
+
 @Component
 @RequiredArgsConstructor
 public class RouteValidator {
 
-    public void validateSubroute(Train train, Route route) {
+    public void validateTrainContainsRoute(Train train, Route route) {
         if (!train.isSubroute(route)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Route is not a subroute of the train's route");
         }
     }
 
-    public void validateSeatsAvailable(Train train, Route route) {
-        int bookedSeats = train.getRouteSeats().getOrDefault(route, 0);
-        if (bookedSeats >= train.getCapacity()) {
+    public void validateSeatsAvailable(Travel travel, Route route) {
+        int remaining = travel.getRouteSeats().getOrDefault(route, 0);
+        if (remaining <= 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "No available seats for this route");
+        }
+    }
+
+    public void validateTravelDate(Train train, LocalDate travelDate) {
+        LocalDate now = LocalDate.now();
+        if(travelDate.isBefore(now) || (travelDate.getYear() - now.getYear()) > bookingThreshold) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Not a valid date" + travelDate);
+        }
+        validateOperatingDay(train, travelDate);
+    }
+
+    public void validateOperatingDay(Train train, LocalDate travelDate) {
+        var days = train.getOperatingDays();
+        if (days != null && !days.isEmpty() && !days.contains(travelDate.getDayOfWeek())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Train " + train.getTrainCode() + " does not operate on " + travelDate.getDayOfWeek());
         }
     }
 }
