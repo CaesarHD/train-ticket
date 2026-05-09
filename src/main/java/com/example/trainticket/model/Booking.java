@@ -3,7 +3,9 @@ package com.example.trainticket.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Data
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
 @Entity
@@ -12,21 +14,37 @@ public class Booking {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Getter
     private Long id;
 
     @ManyToOne
     @JoinColumn(name = "train_id")
+    @Getter
     private Train train;
 
     @ManyToOne
     @JoinColumn(name = "route_id")
+    @Getter
     private Route route;
 
-    private String passengerName;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    @Getter
+    private User user;
 
-    public Booking(Train train, Route route, String passengerName) {
+    @Getter
+    @Setter
+    private LocalDateTime createdAt;
+
+    @Getter
+    @Setter
+    private LocalDate travelDate;
+
+
+    public Booking(Train train, Route route, LocalDate travelDate, User user) {
         this.train = train;
         this.route = route;
-        this.passengerName = passengerName;
+        this.travelDate = travelDate;
+        this.user = user;
     }
 }

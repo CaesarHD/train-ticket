@@ -4,10 +4,12 @@ import com.example.trainticket.model.Booking;
 import com.example.trainticket.model.Route;
 import com.example.trainticket.model.Station;
 import com.example.trainticket.model.Train;
+import com.example.trainticket.model.User;
 import com.example.trainticket.repository.BookingRepository;
 import com.example.trainticket.repository.RouteRepository;
 import com.example.trainticket.repository.StationRepository;
 import com.example.trainticket.repository.TrainRepository;
+import com.example.trainticket.repository.UserRepository;
 import com.example.trainticket.validation.RouteValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 
 @Service
@@ -27,8 +31,9 @@ public class BookingService {
     private final StationRepository stationRepository;
     private final RouteRepository routeRepository;
     private final RouteValidator routeValidator;
+    private final UserRepository userRepository;
 
-    public Booking bookTicket(String trainCode, String startStation, String finishStation, String passengerName) {
+    public Booking bookTicket(String trainCode, String startStation, String finishStation, LocalDate travelDate, Long userId) {
         Train train = trainRepository.findByTrainCode(trainCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Train not found: " + trainCode));
         Station departure = stationRepository.findByName(startStation)
@@ -40,7 +45,11 @@ public class BookingService {
         routeValidator.validateSubroute(train, route);
         routeValidator.validateSeatsAvailable(train, route);
 
-        Booking booking = new Booking(train, route, passengerName);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId));
+
+        Booking booking = new Booking(train, route, travelDate, user);
+        booking.setCreatedAt(LocalDateTime.now());
         booking = bookingRepository.save(booking);
 
         train.bookSeat(route);

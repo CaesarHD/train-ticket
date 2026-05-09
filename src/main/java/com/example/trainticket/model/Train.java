@@ -33,10 +33,10 @@ public class Train {
     @Getter
     @Setter
     @ElementCollection
-    @CollectionTable(name = "train_schedules", joinColumns = @JoinColumn(name = "train_id"))
+    @CollectionTable(name = "train_arrivals", joinColumns = @JoinColumn(name = "train_id"))
     @MapKeyJoinColumn(name = "station_id")
     @Column(name = "arrival_time")
-    private Map<Station, LocalDateTime> schedule;
+    private Map<Station, LocalDateTime> arrivals;
 
     @Getter
     @ElementCollection
@@ -44,6 +44,14 @@ public class Train {
     @MapKeyJoinColumn(name = "route_id")
     @Column(name = "route_seats")
     private Map<Route, Integer> routeSeats;
+
+    @Getter
+    @Setter
+    @ElementCollection
+    @CollectionTable(name = "train_stop_durations", joinColumns = @JoinColumn(name = "train_id"))
+    @MapKeyJoinColumn(name = "station_id")
+    @Column(name = "stop_minutes")
+    private Map<Station, Integer> stopDurations;
 
     @OneToMany(mappedBy = "train")
     private List<Booking> bookings;
@@ -54,12 +62,20 @@ public class Train {
         this.capacity = capacity;
         this.route = route;
 
-        schedule = new HashMap<>();
+        arrivals = new HashMap<>();
         routeSeats = new HashMap<>();
+        stopDurations = new HashMap<>();
     }
 
     public LocalDateTime getArrivalTimeFrom(Station station) {
-        return schedule.get(station);
+        return arrivals.get(station);
+    }
+
+    public LocalDateTime getDepartureTimeFrom(Station station) {
+        LocalDateTime arrival = arrivals.get(station);
+        if (arrival == null) return null;
+        Integer stop = stopDurations.getOrDefault(station, 0);
+        return arrival.plusMinutes(stop);
     }
 
     public void bookSeat(Route route) {

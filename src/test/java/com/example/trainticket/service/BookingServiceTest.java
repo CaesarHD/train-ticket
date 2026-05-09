@@ -1,13 +1,7 @@
 package com.example.trainticket.service;
 
-import com.example.trainticket.model.Booking;
-import com.example.trainticket.model.Route;
-import com.example.trainticket.model.Station;
-import com.example.trainticket.model.Train;
-import com.example.trainticket.repository.BookingRepository;
-import com.example.trainticket.repository.RouteRepository;
-import com.example.trainticket.repository.StationRepository;
-import com.example.trainticket.repository.TrainRepository;
+import com.example.trainticket.model.*;
+import com.example.trainticket.repository.*;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,12 +42,16 @@ class BookingServiceTest {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private UserRepository userRepository;
+
     private Station nyc;
     private Station phl;
     private Station bal;
     private Station dc;
     private Station atl;
     private Station mia;
+    private User alice;
 
     @BeforeEach
     void setUp() {
@@ -63,19 +62,19 @@ class BookingServiceTest {
         atl = stationRepository.save(new Station("ATL"));
         mia = stationRepository.save(new Station("MIA"));
 
-        // Grand route: defines all possible contiguous station pairs
         routeService.createRoute(List.of(nyc, phl, bal, dc, atl));
-        // Train is express: only stops at NYC→BAL→DC
         Route trainRoute = routeService.createRoute(List.of(nyc, bal, dc));
         trainRepository.save(new Train("T100", 100, trainRoute));
+
+        alice = userRepository.save(new User("alice@mail.com", "Alice"));
     }
 
     @Test
     void bookTicket_success() {
-        Booking result = bookingService.bookTicket("T100", "NYC", "DC", "Alice");
+        Booking result = bookingService.bookTicket("T100", "NYC", "DC", LocalDate.now(), alice.getId());
 
         assertNotNull(result.getId());
-        assertEquals("Alice", result.getPassengerName());
+        assertEquals("Alice", result.getUser().getName());
 
         entityManager.flush();
         entityManager.clear();
@@ -90,46 +89,48 @@ class BookingServiceTest {
     @Test
     void bookTicket_throwsWhenTrainNotFound() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("WRONG", "NYC", "DC", "Alice"));
+                () -> bookingService.bookTicket("WRONG", "NYC", "DC", LocalDate.now(), alice.getId()));
         assertEquals("Train not found: WRONG", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenDepartureStationNotFound() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "XXX", "DC", "Alice"));
+                () -> bookingService.bookTicket("T100", "XXX", "DC", LocalDate.now(), alice.getId()));
         assertEquals("Station not found: XXX", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenArrivalStationNotFound() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "NYC", "YYY", "Alice"));
+                () -> bookingService.bookTicket("T100", "NYC", "YYY", LocalDate.now(), alice.getId()));
         assertEquals("Station not found: YYY", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenNoRouteBetweenStations() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "NYC", "MIA", "Alice"));
+                () -> bookingService.bookTicket("T100", "NYC", "MIA", LocalDate.now(), alice.getId()));
         assertEquals("No route from NYC to MIA", ex.getReason());
     }
 
     @Test
     void bookTicket_throwsWhenRouteNotSubroute() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "PHL", "ATL", "Alice"));
+                () -> bookingService.bookTicket("T100", "NYC", "PHL", LocalDate.now(), alice.getId()));
         assertEquals("Route is not a subroute of the train's route", ex.getReason());
     }
+
 
     @Test
     void bookTicket_throwsWhenNoAvailableSeats() {
         for (int i = 0; i < 100; i++) {
-            bookingService.bookTicket("T100", "NYC", "DC", "Passenger" + i);
+            User user = userRepository.save(new User(i + "@mail.com", "name" + i));
+            bookingService.bookTicket("T100", "NYC", "DC", LocalDate.now(), user.getId());
         }
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> bookingService.bookTicket("T100", "NYC", "DC", "Alice"));
+                () -> bookingService.bookTicket("T100", "NYC", "DC", LocalDate.now(), alice.getId()));
         assertEquals("No available seats for this route", ex.getReason());
     }
 }

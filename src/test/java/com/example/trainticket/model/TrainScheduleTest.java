@@ -21,11 +21,11 @@ class TrainScheduleTest {
 
         LocalDateTime timeB = LocalDateTime.of(2025, 1, 1, 10, 0);
         Train train = new Train("T1", 100, route);
-        Map<Station, LocalDateTime> schedule = new HashMap<>();
-        schedule.put(a, LocalDateTime.of(2025, 1, 1, 9, 0));
-        schedule.put(b, timeB);
-        schedule.put(c, LocalDateTime.of(2025, 1, 1, 11, 0));
-        train.setSchedule(schedule);
+        Map<Station, LocalDateTime> arrivals = new HashMap<>();
+        arrivals.put(a, LocalDateTime.of(2025, 1, 1, 9, 0));
+        arrivals.put(b, timeB);
+        arrivals.put(c, LocalDateTime.of(2025, 1, 1, 11, 0));
+        train.setArrivals(arrivals);
 
         assertEquals(timeB, train.getArrivalTimeFrom(b));
     }
@@ -38,10 +38,10 @@ class TrainScheduleTest {
 
         Route route = new Route(List.of(a, b), null);
         Train train = new Train("T1", 100, route);
-        Map<Station, LocalDateTime> schedule = new HashMap<>();
-        schedule.put(a, LocalDateTime.of(2025, 1, 1, 9, 0));
-        schedule.put(b, LocalDateTime.of(2025, 1, 1, 10, 0));
-        train.setSchedule(schedule);
+        Map<Station, LocalDateTime> arrivals = new HashMap<>();
+        arrivals.put(a, LocalDateTime.of(2025, 1, 1, 9, 0));
+        arrivals.put(b, LocalDateTime.of(2025, 1, 1, 10, 0));
+        train.setArrivals(arrivals);
 
         assertNull(train.getArrivalTimeFrom(unknown));
     }
