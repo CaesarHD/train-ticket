@@ -1,11 +1,10 @@
 package com.example.trainticket.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record BookingRequest (
-   String trainCode,
-   String departureStation,
-    String destinationStation,
+   List<BookingSegment> segments,
    LocalDate travelDate,
    String userEmail,
    String userName

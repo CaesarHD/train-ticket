@@ -2,12 +2,14 @@ package com.example.trainticket.controller;
 
 import com.example.trainticket.dto.BookingRequest;
 import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.RouteOption;
 import com.example.trainticket.service.BookingService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -29,4 +31,11 @@ public class BookingController {
         return bookingService.getAllBookings();
     }
 
+    @GetMapping("/routes")
+    public List<RouteOption> findRoutes(
+            @RequestParam String from,
+            @RequestParam String to,
+            @RequestParam LocalDate date) {
+        return bookingService.findRoutes(from, to, date);
+    }
 }

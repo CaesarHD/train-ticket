@@ -25,7 +25,7 @@ public class Booking {
     @ManyToOne
     @JoinColumn(name = "route_id")
     @Getter
-    private Route route;
+    private Route userRoute;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -40,10 +40,15 @@ public class Booking {
     @Setter
     private LocalDate travelDate;
 
+    @ManyToOne
+    @JoinColumn(name = "itinerary_id")
+    @Getter
+    @Setter
+    private Itinerary itinerary;
 
-    public Booking(Travel travel, Route route, User user) {
+    public Booking(Travel travel, Route userRoute, User user) {
         this.travel = travel;
-        this.route = route;
+        this.userRoute = userRoute;
         this.travelDate = travel.getTravelDate();
         this.user = user;
     }

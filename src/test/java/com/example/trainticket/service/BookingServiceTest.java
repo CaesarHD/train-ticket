@@ -2,6 +2,7 @@ package com.example.trainticket.service;
 
 import com.example.trainticket.dto.BookingRequest;
 import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.BookingSegment;
 import com.example.trainticket.model.*;
 import com.example.trainticket.repository.*;
 import jakarta.persistence.EntityManager;
@@ -15,8 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -46,6 +50,9 @@ class BookingServiceTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ItineraryRepository itineraryRepository;
+
     private Station cluj;
     private Station turda;
     private Station medias;
@@ -67,13 +74,25 @@ class BookingServiceTest {
         Route trainRoute = routeService.createRoute(List.of(dej, medias, sighisoara));
         var train = new Train("T100", 100, trainRoute);
         train.setOperatingDays(EnumSet.allOf(DayOfWeek.class));
+        Map<Station, LocalDateTime> arrivals = new LinkedHashMap<>();
+        arrivals.put(dej, LocalDateTime.of(2025, 1, 1, 5, 0));
+        arrivals.put(medias, LocalDateTime.of(2025, 1, 1, 6, 0));
+        arrivals.put(sighisoara, LocalDateTime.of(2025, 1, 1, 7, 0));
+        train.setArrivals(arrivals);
+        Map<Station, Integer> stops = new LinkedHashMap<>();
+        stops.put(dej, 0);
+        stops.put(medias, 5);
+        stops.put(sighisoara, 0);
+        train.setStopDurations(stops);
         trainRepository.save(train);
 
         alice = userRepository.save(new User("alice@mail.com", "Alice"));
     }
 
     private BookingRequest req(String trainCode, String dep, String dest, LocalDate date, String email) {
-        return new BookingRequest(trainCode, dep, dest, date, email, email);
+        return new BookingRequest(
+                List.of(new BookingSegment(trainCode, dep, dest)),
+                date, email, email);
     }
 
     @Test
@@ -83,15 +102,20 @@ class BookingServiceTest {
 
         assertNotNull(result.id());
         assertEquals("Alice", result.userName());
+        assertEquals(1, result.segments().size());
+        assertEquals("T100", result.segments().getFirst().trainCode());
+        assertEquals("Dej", result.segments().getFirst().departureStation());
+        assertEquals("Sighisoara", result.segments().getFirst().destinationStation());
 
         entityManager.flush();
         entityManager.clear();
 
-        Booking saved = bookingRepository.findById(result.id()).orElseThrow();
+        var savedItinerary = itineraryRepository.findById(result.id()).orElseThrow();
+        Booking saved = savedItinerary.getBookings().getFirst();
         assertNotNull(saved);
         assertEquals("T100", saved.getTrain().getTrainCode());
-        assertEquals("Dej", saved.getRoute().getStations().getFirst().getName());
-        assertEquals("Sighisoara", saved.getRoute().getStations().getLast().getName());
+        assertEquals("Dej", saved.getUserRoute().getStations().getFirst().getName());
+        assertEquals("Sighisoara", saved.getUserRoute().getStations().getLast().getName());
     }
 
     @Test
@@ -176,6 +200,14 @@ class BookingServiceTest {
         routeService.createRoute(List.of(a, b));
         var train = new Train("T-OPDAY", 50, routeService.createRoute(List.of(a, b)));
         train.setOperatingDays(EnumSet.of(DayOfWeek.MONDAY));
+        Map<Station, LocalDateTime> arrivals = new LinkedHashMap<>();
+        arrivals.put(a, LocalDateTime.of(2025, 1, 1, 10, 0));
+        arrivals.put(b, LocalDateTime.of(2025, 1, 1, 11, 0));
+        train.setArrivals(arrivals);
+        Map<Station, Integer> stops = new LinkedHashMap<>();
+        stops.put(a, 0);
+        stops.put(b, 0);
+        train.setStopDurations(stops);
         trainRepository.save(train);
 
         BookingResponse result = bookingService.bookTicket(

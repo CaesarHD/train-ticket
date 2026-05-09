@@ -9,9 +9,9 @@ import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    @EntityGraph(attributePaths = {"train", "route.stations", "user"})
+    @EntityGraph(attributePaths = {"travel", "route", "user"})
     List<Booking> findByUser(User user);
 
-    @EntityGraph(attributePaths = {"train", "route.stations", "user"})
+    @EntityGraph(attributePaths = {"travel", "route", "user"})
     List<Booking> findAll();
 }
