@@ -30,6 +30,7 @@ public class Booking {
     @ManyToOne
     @JoinColumn(name = "user_id")
     @Getter
+    @Setter
     private User user;
 
     @Getter
@@ -55,5 +56,17 @@ public class Booking {
 
     public Train getTrain() {
         return travel.getTrain();
+    }
+
+    public String getArrivalStationName() {
+        return userRoute.getArrival().getName();
+    }
+
+    public String getDepartureStationName() {
+        return userRoute.getDeparture().getName();
+    }
+
+    public String getTrainCode() {
+        return travel.getTrain().getTrainCode();
     }
 }

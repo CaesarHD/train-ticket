@@ -1,6 +1,6 @@
 package com.example.trainticket.controller;
 
-import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.ItineraryResponse;
 import com.example.trainticket.dto.RouteOption;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +41,7 @@ class BookingControllerTest {
                         {
                             "trainCode": "TRA-001",
                             "departureStation": "Cluj-Napoca",
-                            "destinationStation": "Bucuresti"
+                            "arrivalStation": "Bucuresti"
                         }
                     ],
                     "travelDate": "%s",
@@ -58,13 +58,13 @@ class BookingControllerTest {
 
         var response = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
-                BookingResponse.class);
+                ItineraryResponse.class);
 
         assertThat(response.id()).isNotNull();
         assertThat(response.segments()).hasSize(1);
         assertThat(response.segments().get(0).trainCode()).isEqualTo("TRA-001");
         assertThat(response.segments().get(0).departureStation()).isEqualTo("Cluj-Napoca");
-        assertThat(response.segments().get(0).destinationStation()).isEqualTo("Bucuresti");
+        assertThat(response.segments().get(0).arrivalStation()).isEqualTo("Bucuresti");
         assertThat(response.travelDate()).isEqualTo(futureDate);
         assertThat(response.userName()).isEqualTo("Test User");
         assertThat(response.userEmail()).isEqualTo("test@example.com");

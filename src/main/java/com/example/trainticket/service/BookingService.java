@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,55 +41,71 @@ public class BookingService {
     private final UserRepository userRepository;
     private final BookingMapper bookingMapper;
 
-    public BookingResponse bookTicket(BookingRequest request) {
+    public ItineraryResponse bookTicket(ItineraryRequest request) {
+
         log.info("bookTicket request: segments={}, date={}, email={}",
                 request.segments(), request.travelDate(), request.userEmail());
 
-        User user = userRepository.findByEmail(request.userEmail())
+        User user = getUser(request);
+        Itinerary itinerary = itineraryRepository.save(new Itinerary(user));
+        LocalDate travelDate = request.travelDate();
+
+        for (BookingSegment seg : request.segments()) {
+            Booking booking = createBooking(seg, travelDate, user, itinerary);
+            bookingRepository.save(booking);
+            itinerary.getBookings().add(booking);
+
+            log.debug("Booking created for segment: train={}, route={}->{}",
+                    booking.getTrainCode(),
+                    booking.getDepartureStationName(),
+                    booking.getArrivalStationName());
+        }
+
+        return bookingMapper.toResponse(itinerary);
+    }
+
+    private User getUser(ItineraryRequest request) {
+        return userRepository.findByEmail(request.userEmail())
                 .orElseGet(() -> {
                     log.info("User not found, creating: {}", request.userEmail());
                     return userRepository.save(new User(request.userEmail(), request.userName()));
                 });
+    }
 
-        Itinerary itinerary = itineraryRepository.save(new Itinerary(user));
+    private Booking createBooking(BookingSegment seg, LocalDate travelDate, User user, Itinerary itinerary) {
+        Train train = findTrain(seg.trainCode());
+        Station departure = findStation(seg.departureStation());
+        Station arrival = findStation(seg.arrivalStation());
+        Route route = findMostDirectRoute(departure, arrival);
 
-        for (BookingSegment seg : request.segments()) {
-            Train train = trainRepository.findByTrainCode(seg.trainCode())
-                    .orElseThrow(() -> {
-                        log.warn("Train not found: {}", seg.trainCode());
-                        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Train not found: " + seg.trainCode());
-                    });
+        routeValidator.validateTravelDate(train, travelDate);
+        routeValidator.validateTrainContainsRoute(train, route);
 
-            Station departure = stationRepository.findByName(seg.departureStation())
-                    .orElseThrow(() -> {
-                        log.warn("Departure station not found: {}", seg.departureStation());
-                        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Station not found: " + seg.departureStation());
-                    });
-            Station arrival = stationRepository.findByName(seg.destinationStation())
-                    .orElseThrow(() -> {
-                        log.warn("Destination station not found: {}", seg.destinationStation());
-                        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Station not found: " + seg.destinationStation());
-                    });
+        Travel travel = travelService.findOrCreate(train, travelDate);
+        routeValidator.validateSeatsAvailable(travel, route);
+        travelService.bookSeat(travel, route);
 
-            Route route = findRoute(departure, arrival);
+        Booking booking = new Booking(travel, route, user);
+        booking.setItinerary(itinerary);
+        booking.setCreatedAt(LocalDateTime.now());
 
-            routeValidator.validateTravelDate(train, request.travelDate());
-            routeValidator.validateTrainContainsRoute(train, route);
+        return booking;
+    }
 
-            Travel travel = travelService.findOrCreate(train, request.travelDate());
-            routeValidator.validateSeatsAvailable(travel, route);
-            travelService.bookSeat(travel, route);
+    private Station findStation(String stationName) {
+        return stationRepository.findByName(stationName)
+                .orElseThrow(() -> {
+                    log.warn("Station not found: {}", stationName);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Station not found: " + stationName);
+                });
+    }
 
-            Booking booking = new Booking(travel, route, user);
-            booking.setItinerary(itinerary);
-            booking.setCreatedAt(LocalDateTime.now());
-            bookingRepository.save(booking);
-            itinerary.getBookings().add(booking);
-            log.debug("Booking created for segment: train={}, route={}->{}",
-                    train.getTrainCode(), departure.getName(), arrival.getName());
-        }
-
-        return bookingMapper.toResponse(itinerary);
+    private Train findTrain(String trainCode) {
+        return trainRepository.findByTrainCode(trainCode)
+                .orElseThrow(() -> {
+                    log.warn("Train not found: {}", trainCode);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Train not found: " + trainCode);
+                });
     }
 
     private record Edge(String toStation, String trainCode, LocalDateTime departureTime, LocalDateTime arrivalTime) {}
@@ -110,16 +127,14 @@ public class BookingService {
 
         if (departure.equals(destination)) return List.of();
 
-        DayOfWeek dayOfWeek = date.getDayOfWeek();
-        List<Train> trains = trainRepository.findAll().stream()
-                .filter(t -> {
-                    var days = t.getOperatingDays();
-                    return days == null || days.isEmpty() || days.contains(dayOfWeek);
-                })
-                .toList();
-
+        List<Train> trains = getOperatingTrains(date);
         if (trains.isEmpty()) return List.of();
 
+        Map<String, Train> trainByCode = trains.stream()
+                .collect(Collectors.toMap(Train::getTrainCode, t -> t));
+
+        List<Route> allRoutes = routeRepository.findAllWithStations();
+        Map<String, Travel> travelCache = new HashMap<>();
         Map<String, List<Edge>> graph = buildGraph(trains, date);
 
         LocalDateTime startTime = date.atStartOfDay();
@@ -132,15 +147,7 @@ public class BookingService {
             Node node = pq.poll();
 
             if (node.station.equals(destination.getName())) {
-                long totalMin = Duration.between(startTime, node.arrivalTime).toMinutes();
-                int transfers = Math.max(0, node.segments.size() - 1);
-                results.add(new RouteOption(
-                        node.segments.stream()
-                                .map(s -> new SegmentOption(
-                                        s.trainCode(), s.departureStation(), s.arrivalStation(),
-                                        s.departureTime().format(TIME_FMT), s.arrivalTime().format(TIME_FMT)))
-                                .toList(),
-                        totalMin, transfers));
+                results.add(toRouteOption(node, startTime, date, trainByCode, allRoutes, travelCache));
                 continue;
             }
 
@@ -149,27 +156,72 @@ public class BookingService {
 
             for (Edge edge : graph.getOrDefault(node.station, List.of())) {
                 boolean sameTrain = lastTrain != null && lastTrain.equals(edge.trainCode);
-
                 if (!sameTrain && edge.departureTime.isBefore(node.arrivalTime)) continue;
 
-                List<InternalSegment> newSegments = new ArrayList<>(node.segments);
-                if (sameTrain && !newSegments.isEmpty()) {
-                    InternalSegment last = newSegments.remove(newSegments.size() - 1);
-                    newSegments.add(new InternalSegment(
-                            edge.trainCode, last.departureStation(), edge.toStation,
-                            last.departureTime(), edge.arrivalTime));
-                } else {
-                    newSegments.add(new InternalSegment(
-                            edge.trainCode, node.station, edge.toStation,
-                            edge.departureTime, edge.arrivalTime));
-                }
-
+                List<InternalSegment> newSegments = appendSegment(node.segments, edge, node.station, sameTrain);
                 pq.add(new Node(edge.toStation, edge.arrivalTime, newSegments));
             }
         }
 
         results.sort(Comparator.comparing(RouteOption::totalMinutes));
         return results;
+    }
+
+    private List<Train> getOperatingTrains(LocalDate date) {
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
+        return trainRepository.findAll().stream()
+                .filter(t -> {
+                    var days = t.getOperatingDays();
+                    return days == null || days.isEmpty() || days.contains(dayOfWeek);
+                })
+                .toList();
+    }
+
+    private RouteOption toRouteOption(Node node, LocalDateTime startTime, LocalDate date,
+                                       Map<String, Train> trainByCode, List<Route> allRoutes,
+                                       Map<String, Travel> travelCache) {
+        long totalMin = Duration.between(startTime, node.arrivalTime).toMinutes();
+        int transfers = Math.max(0, node.segments.size() - 1);
+        int minSeats = computeMinRemainingSeats(node.segments, date, trainByCode, allRoutes, travelCache);
+        return new RouteOption(
+                node.segments.stream()
+                        .map(s -> new SegmentOption(
+                                s.trainCode(), s.departureStation(), s.arrivalStation(),
+                                s.departureTime().format(TIME_FMT), s.arrivalTime().format(TIME_FMT)))
+                        .toList(),
+                totalMin, transfers, minSeats);
+    }
+
+    private int computeMinRemainingSeats(List<InternalSegment> segments, LocalDate date,
+                                          Map<String, Train> trainByCode, List<Route> allRoutes,
+                                          Map<String, Travel> travelCache) {
+        int min = Integer.MAX_VALUE;
+        for (InternalSegment seg : segments) {
+            Train t = trainByCode.get(seg.trainCode());
+            if (t == null) continue;
+            Route r = findMatchingRoute(allRoutes, t, seg.departureStation(), seg.arrivalStation());
+            if (r == null) continue;
+            String cacheKey = t.getTrainCode() + ":" + date;
+            Travel travel = travelCache.computeIfAbsent(cacheKey, k -> travelService.findOrCreate(t, date));
+            min = Math.min(min, travel.getRouteSeats().getOrDefault(r, 0));
+        }
+        return min == Integer.MAX_VALUE ? 0 : min;
+    }
+
+    private List<InternalSegment> appendSegment(List<InternalSegment> segments, Edge edge,
+                                                 String currentStation, boolean sameTrain) {
+        List<InternalSegment> newSegments = new ArrayList<>(segments);
+        if (sameTrain && !newSegments.isEmpty()) {
+            InternalSegment last = newSegments.remove(newSegments.size() - 1);
+            newSegments.add(new InternalSegment(
+                    edge.trainCode, last.departureStation(), edge.toStation,
+                    last.departureTime(), edge.arrivalTime));
+        } else {
+            newSegments.add(new InternalSegment(
+                    edge.trainCode, currentStation, edge.toStation,
+                    edge.departureTime, edge.arrivalTime));
+        }
+        return newSegments;
     }
 
     private Map<String, List<Edge>> buildGraph(List<Train> trains, LocalDate date) {
@@ -192,7 +244,7 @@ public class BookingService {
         return graph;
     }
 
-    public Route findRoute(Station departure, Station arrival) {
+    public Route findMostDirectRoute(Station departure, Station arrival) {
         return routeRepository.findAllWithStations().stream()
                 .filter(r -> !r.getStations().isEmpty()
                         && r.getStations().getFirst().equals(departure)
@@ -202,7 +254,7 @@ public class BookingService {
                         "No route from " + departure.getName() + " to " + arrival.getName()));
     }
 
-    public List<BookingResponse> getAllUserBookings(Long id) {
+    public List<ItineraryResponse> getAllUserBookings(Long id) {
         User user = userRepository.findById(id).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "User with id " + id + " not found"));
 
@@ -214,7 +266,7 @@ public class BookingService {
                 .toList();
     }
 
-    public List<BookingResponse> getAllBookings() {
+    public List<ItineraryResponse> getAllBookings() {
         return itineraryRepository.findAll().stream()
                 .map(bookingMapper::toResponse)
                 .toList();
@@ -228,7 +280,7 @@ public class BookingService {
 
         Route route;
         try {
-            route = findRoute(departure, arrival);
+            route = findMostDirectRoute(departure, arrival);
         } catch (ResponseStatusException e) {
             return List.of();
         }
@@ -246,5 +298,18 @@ public class BookingService {
                     return TrainResponse.from(train, travel, route);
                 })
                 .toList();
+    }
+
+    private Route findMatchingRoute(List<Route> allRoutes, Train train, String departureStation, String arrivalStation) {
+        return allRoutes.stream()
+                .filter(r -> {
+                    List<Station> stations = r.getStations();
+                    return stations.size() >= 2
+                            && stations.getFirst().getName().equals(departureStation)
+                            && stations.getLast().getName().equals(arrivalStation)
+                            && train.isSubroute(r);
+                })
+                .findFirst()
+                .orElse(null);
     }
 }

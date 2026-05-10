@@ -48,10 +48,10 @@ class TrainControllerTest {
         assertThat(t.trainCode()).isEqualTo("TRA-001");
         assertThat(t.departureStation()).isEqualTo("Cluj-Napoca");
         assertThat(t.departureTime()).isEqualTo("06:00");
-        assertThat(t.destinationStation()).isEqualTo("Bucuresti");
+        assertThat(t.arrivalStation()).isEqualTo("Bucuresti");
         assertThat(t.arrivalTime()).isEqualTo("13:00");
         assertThat(t.routeDeparture()).isEqualTo("Cluj-Napoca");
-        assertThat(t.routeDestination()).isEqualTo("Bucuresti");
+        assertThat(t.routeArrival()).isEqualTo("Bucuresti");
     }
 
     @Test
@@ -77,10 +77,10 @@ class TrainControllerTest {
         assertThat(t.trainCode()).isEqualTo("TRA-002");
         assertThat(t.departureStation()).isEqualTo("Dej");
         assertThat(t.departureTime()).isEqualTo("05:00");
-        assertThat(t.destinationStation()).isEqualTo("Sibiu");
+        assertThat(t.arrivalStation()).isEqualTo("Sibiu");
         assertThat(t.arrivalTime()).isEqualTo("08:15");
         assertThat(t.routeDeparture()).isEqualTo("Dej");
-        assertThat(t.routeDestination()).isEqualTo("Sibiu");
+        assertThat(t.routeArrival()).isEqualTo("Sibiu");
     }
 
     @Test

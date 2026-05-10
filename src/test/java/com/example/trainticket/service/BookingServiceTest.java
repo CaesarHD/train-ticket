@@ -1,7 +1,7 @@
 package com.example.trainticket.service;
 
-import com.example.trainticket.dto.BookingRequest;
-import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.ItineraryRequest;
+import com.example.trainticket.dto.ItineraryResponse;
 import com.example.trainticket.dto.BookingSegment;
 import com.example.trainticket.model.*;
 import com.example.trainticket.repository.*;
@@ -89,15 +89,15 @@ class BookingServiceTest {
         alice = userRepository.save(new User("alice@mail.com", "Alice"));
     }
 
-    private BookingRequest req(String trainCode, String dep, String dest, LocalDate date, String email) {
-        return new BookingRequest(
+    private ItineraryRequest req(String trainCode, String dep, String dest, LocalDate date, String email) {
+        return new ItineraryRequest(
                 List.of(new BookingSegment(trainCode, dep, dest)),
                 date, email, email);
     }
 
     @Test
     void bookTicket_success() {
-        BookingResponse result = bookingService.bookTicket(
+        ItineraryResponse result = bookingService.bookTicket(
                 req("T100", "Dej", "Sighisoara", LocalDate.now(), "alice@mail.com"));
 
         assertNotNull(result.id());
@@ -105,7 +105,7 @@ class BookingServiceTest {
         assertEquals(1, result.segments().size());
         assertEquals("T100", result.segments().getFirst().trainCode());
         assertEquals("Dej", result.segments().getFirst().departureStation());
-        assertEquals("Sighisoara", result.segments().getFirst().destinationStation());
+        assertEquals("Sighisoara", result.segments().getFirst().arrivalStation());
 
         entityManager.flush();
         entityManager.clear();
@@ -210,7 +210,7 @@ class BookingServiceTest {
         train.setStopDurations(stops);
         trainRepository.save(train);
 
-        BookingResponse result = bookingService.bookTicket(
+        ItineraryResponse result = bookingService.bookTicket(
                 req("T-OPDAY", "DepA", "ArrB", LocalDate.of(2026, 5, 11), "opday@mail.com"));
 
         assertNotNull(result.id());

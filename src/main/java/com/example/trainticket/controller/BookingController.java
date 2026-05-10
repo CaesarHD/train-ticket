@@ -1,9 +1,10 @@
 package com.example.trainticket.controller;
 
-import com.example.trainticket.dto.BookingRequest;
-import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.ItineraryRequest;
+import com.example.trainticket.dto.ItineraryResponse;
 import com.example.trainticket.dto.RouteOption;
 import com.example.trainticket.service.BookingService;
+import jakarta.validation.Valid;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,12 +23,12 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    public BookingResponse bookTicket(@RequestBody BookingRequest request) {
+    public ItineraryResponse bookTicket(@Valid @RequestBody ItineraryRequest request) {
         return bookingService.bookTicket(request);
     }
 
     @GetMapping("/all")
-    public List<BookingResponse> getAllBookings() {
+    public List<ItineraryResponse> getAllBookings() {
         return bookingService.getAllBookings();
     }
 

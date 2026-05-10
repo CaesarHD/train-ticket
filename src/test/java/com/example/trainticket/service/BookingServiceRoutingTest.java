@@ -39,6 +39,7 @@ class BookingServiceRoutingTest {
         assertThat(best.segments().get(0).departureStation()).isEqualTo("Cluj-Napoca");
         assertThat(best.segments().get(0).arrivalStation()).isEqualTo("Bucuresti");
         assertThat(best.totalMinutes()).isPositive();
+        assertThat(best.minRemainingSeats()).isPositive();
     }
 
     @Test

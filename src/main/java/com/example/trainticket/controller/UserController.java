@@ -1,6 +1,6 @@
 package com.example.trainticket.controller;
 
-import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.ItineraryResponse;
 import com.example.trainticket.model.User;
 import com.example.trainticket.repository.UserRepository;
 import com.example.trainticket.service.BookingService;
@@ -20,7 +20,7 @@ public class UserController {
     private final UserRepository userRepository;
 
     @GetMapping("/{id}")
-    public List<BookingResponse> getAllUserBookings(@PathVariable Long id) {
+    public List<ItineraryResponse> getAllUserBookings(@PathVariable Long id) {
         return bookingService.getAllUserBookings(id);
     }
 

@@ -5,5 +5,6 @@ import java.util.List;
 public record RouteOption(
         List<SegmentOption> segments,
         long totalMinutes,
-        int transfers
+        int transfers,
+        int minRemainingSeats
 ) {}

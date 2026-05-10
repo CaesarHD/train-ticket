@@ -1,6 +1,6 @@
 package com.example.trainticket.mapper;
 
-import com.example.trainticket.dto.BookingResponse;
+import com.example.trainticket.dto.ItineraryResponse;
 import com.example.trainticket.dto.SegmentResponse;
 import com.example.trainticket.model.Booking;
 import com.example.trainticket.model.Itinerary;
@@ -14,7 +14,7 @@ public class BookingMapper {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
-    public BookingResponse toResponse(Itinerary itinerary) {
+    public ItineraryResponse toResponse(Itinerary itinerary) {
         List<Booking> bookings = itinerary.getBookings();
         List<SegmentResponse> segments = bookings.stream()
                 .map(b -> new SegmentResponse(
@@ -27,7 +27,7 @@ public class BookingMapper {
                 .toList();
 
         Booking first = bookings.getFirst();
-        return new BookingResponse(
+        return new ItineraryResponse(
                 itinerary.getId(),
                 segments,
                 first.getTravelDate(),

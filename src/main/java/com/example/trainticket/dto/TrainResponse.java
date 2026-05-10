@@ -11,11 +11,11 @@ public record TrainResponse(
         int remainingSeats,
         String departureStation,
         String departureTime,
-        String destinationStation,
+        String arrivalStation,
         String arrivalTime,
         String routeDeparture,
         String routeDepartureTime,
-        String routeDestination,
+        String routeArrival,
         String routeArrivalTime
 ) {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
