@@ -14,7 +14,7 @@ Built with Spring Boot 3.5 + JPA + H2 (or PostgreSQL) + MailHog for emails.
 | **Station** | A station (Cluj-Napoca, Bucuresti, etc.). Just name + ID.                                                                                                                                  |
 | **Route** | An ordered list of stations. Example: `[Cluj, Turda, Medias, Brasov]`. A route can also be a subsequence (e.g. just `[Cluj, Medias]` is a subroute of the full route).                     |
 | **Train** | A real train. Has a code (TRA-001), capacity, a route (Route), a map of arrivals per station, a map of stop durations per station, and operating days.                                     |
-| **Travel** | The bridge between a train and a specific date. This holds the **remaining seats per subroute** (`Map<Route, Integer>`). When you book, seats get decremented from all affected subroutes. |
+| **Travel** | The bridge between a train and a specific date. Holds **remaining seats per subroute** (`Map<Route, Integer>`). Created lazily on first booking — no Travel entity exists until someone books that train on that date. |
 | **Booking** | One user's reservation on one segment (one train, one subroute, one date). If your journey has 3 trains → 3 Bookings.                                                                      |
 | **Itinerary** | Groups multiple Bookings into one complete journey (with transfers).                                                                                                                       |
 | **User** | Just email + name. Auto-created on first booking.                                                                                                                                          |
@@ -28,6 +28,23 @@ Train ─── Travel ─── Booking ─── Itinerary ─── User
              │
              └── routeSeats (availability per subroute)
 ```
+
+### Route generator — auto-creating sub-routes
+
+When a route is created via `POST /api/admin/routes` with stations `[Cluj, Gherla, Dej]`, the system automatically generates all possible **consecutive** sub-routes:
+
+```
+Input:  Cluj ─── Gherla ─── Dej
+
+Output:
+  Cluj ─── Gherla ─── Dej   (full route)
+  Cluj ─── Gherla           (indices 0→1)
+  Gherla ─── Dej            (indices 1→2)
+```
+
+The nested loop in `RouteService.createRoute()` iterates every `[fromIdx, toIdx]` pair and uses `stations.subList(fromIdx, toIdx + 1)` to extract the sub-range — which means only **contiguous** station sequences are saved. The full route is saved once outside the loop, then the inner loop skips it (`fromIdx=0 && toIdx=n-1`).
+
+This way, any pair of consecutive stations is bookable as its own route without manually creating each segment.
 
 ### Why Travel + Booking are separate
 
@@ -564,6 +581,12 @@ The app sends `@Async` emails through MailHog (SMTP localhost:1025).
 ---
 
 ## Seed data
+
+On startup, `DataSeeder` reads `seed-data.yml` from the classpath via SnakeYAML and loads:
+1. **Stations** — saved if they don't exist
+2. **Routes** — passed to `routeService.createRoute()`, which auto-generates all sub-routes
+3. **Trains** — linked to routes by index, with arrivals, stop durations, and operating days
+4. **Default user** — `test@example.com`
 
 The app starts with 24 Romanian stations + Vienna, 8 routes and 8 predefined trains:
 
