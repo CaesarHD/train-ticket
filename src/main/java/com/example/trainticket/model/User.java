@@ -19,11 +19,15 @@ public class User {
     @Getter
     @Setter
     @Column(nullable = false, unique = true, length = 100)
-    String email;
+    private String email;
 
     @Getter
     @Setter
-    String name;
+    private String name;
+
+    @Getter
+    @Setter
+    private UserRole userRole;
 
     @OneToMany(mappedBy = "user")
     private List<Booking> bookings;

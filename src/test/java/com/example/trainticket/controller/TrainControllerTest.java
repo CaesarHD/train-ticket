@@ -1,5 +1,6 @@
 package com.example.trainticket.controller;
 
+import com.example.trainticket.dto.ItineraryResponse;
 import com.example.trainticket.dto.TrainResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,18 +9,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureTestDatabase
 @AutoConfigureMockMvc
+@Transactional
 class TrainControllerTest {
 
     @Autowired
@@ -108,5 +113,58 @@ class TrainControllerTest {
         assertThat(trains).hasSizeGreaterThanOrEqualTo(2);
         assertThat(trains).extracting(TrainResponse::trainCode)
                 .contains("TRA-001", "TRA-002", "TRA-003");
+    }
+
+    @Test
+    void getAllBookings_noTravelForDate_returns404() throws Exception {
+        var futureDate = LocalDate.now().plusDays(30);
+
+        mockMvc.perform(get("/api/trains/bookings/TRA-001")
+                        .param("date", futureDate.toString()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getAllBookings_withExistingBooking_returnsItineraries() throws Exception {
+        var futureDate = LocalDate.now().plusDays(14);
+        if (futureDate.getDayOfWeek().name().matches("SATURDAY|SUNDAY")) {
+            futureDate = futureDate.plusDays(2);
+        }
+
+        var body = """
+                {
+                    "segments": [
+                        {
+                            "trainCode": "TRA-002",
+                            "departureStation": "Dej",
+                            "arrivalStation": "Sibiu"
+                        }
+                    ],
+                    "travelDate": "%s",
+                    "userEmail": "test@example.com",
+                    "userName": "Test User"
+                }
+                """.formatted(futureDate);
+
+        mockMvc.perform(post("/api/booking")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated());
+
+        var result = mockMvc.perform(get("/api/trains/bookings/TRA-002")
+                        .param("date", futureDate.toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        var itineraries = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                new TypeReference<List<ItineraryResponse>>() {});
+
+        assertThat(itineraries).isNotEmpty();
+        var first = itineraries.get(0);
+        assertThat(first.segments()).hasSize(1);
+        assertThat(first.segments().get(0).trainCode()).isEqualTo("TRA-002");
+        assertThat(first.segments().get(0).departureStation()).isEqualTo("Dej");
+        assertThat(first.segments().get(0).arrivalStation()).isEqualTo("Sibiu");
     }
 }

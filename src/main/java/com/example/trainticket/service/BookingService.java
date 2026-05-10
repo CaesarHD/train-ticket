@@ -35,6 +35,7 @@ public class BookingService {
 
     private final TrainRepository trainRepository;
     private final TravelService travelService;
+    private final TravelRepository travelRepository;
     private final BookingRepository bookingRepository;
     private final ItineraryRepository itineraryRepository;
     private final StationRepository stationRepository;
@@ -101,6 +102,7 @@ public class BookingService {
         Booking booking = new Booking(travel, route, user);
         booking.setItinerary(itinerary);
         booking.setCreatedAt(LocalDateTime.now());
+        travel.getBookings().add(booking);
 
         return booking;
     }
@@ -270,6 +272,20 @@ public class BookingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "No route from " + departure.getName() + " to " + arrival.getName()));
     }
+
+    public List<ItineraryResponse> getAllTrainBookings(String trainCode, LocalDate date) {
+        Train train = findTrain(trainCode);
+        Travel travel = travelRepository.findByTrainAndTravelDate(train, date)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No travel found for " + trainCode + " on " + date));
+        return travel.getBookings().stream()
+                .map(Booking::getItinerary)
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(bookingMapper::toResponse)
+                .toList();
+    }
+
 
     public List<ItineraryResponse> getAllUserBookings(Long id) {
         User user = userRepository.findById(id).orElseThrow(() ->

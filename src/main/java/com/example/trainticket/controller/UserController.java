@@ -17,16 +17,9 @@ import java.util.List;
 public class UserController {
 
     private final BookingService bookingService;
-    private final UserRepository userRepository;
 
     @GetMapping("/{id}")
     public List<ItineraryResponse> getAllUserBookings(@PathVariable Long id) {
         return bookingService.getAllUserBookings(id);
     }
-
-    @GetMapping("/all")
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
-    }
-
 }

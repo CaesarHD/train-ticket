@@ -34,6 +34,7 @@ public class Travel {
     @Column(name = "remaining_seats")
     private Map<Route, Integer> routeSeats;
 
+    @Getter
     @OneToMany(mappedBy = "travel")
     private List<Booking> bookings;
 
