@@ -114,9 +114,9 @@ class BookingServiceRoutingTest {
         List<RouteOption> routes = bookingService.findRoutes("Cluj-Napoca", "Galati", MONDAY);
 
         assertThat(routes).isNotEmpty();
-        for (int i = 1; i < routes.size(); i++) {
-            assertThat(routes.get(i).totalMinutes())
-                    .isGreaterThanOrEqualTo(routes.get(i - 1).totalMinutes());
+        for (int idx = 1; idx < routes.size(); idx++) {
+            assertThat(routes.get(idx).totalMinutes())
+                    .isGreaterThanOrEqualTo(routes.get(idx - 1).totalMinutes());
         }
     }
 
@@ -170,10 +170,10 @@ class BookingServiceRoutingTest {
     }
 
     private void assertSegmentsConnect(List<SegmentOption> segments) {
-        for (int i = 1; i < segments.size(); i++) {
-            assertThat(segments.get(i).departureStation())
-                    .as("segment %d departure should match segment %d arrival", i, i - 1)
-                    .isEqualTo(segments.get(i - 1).arrivalStation());
+        for (int idx = 1; idx < segments.size(); idx++) {
+            assertThat(segments.get(idx).departureStation())
+                    .as("segment %d departure should match segment %d arrival", idx, idx - 1)
+                    .isEqualTo(segments.get(idx - 1).arrivalStation());
         }
     }
 }

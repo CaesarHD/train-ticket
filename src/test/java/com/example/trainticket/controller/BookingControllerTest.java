@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,9 +34,9 @@ class BookingControllerTest {
 
     @Test
     void bookTicket_viaApi_returnsCreatedWithBookingDetails() throws Exception {
-        var futureDate = LocalDate.now().plusDays(7);
+        LocalDate futureDate = LocalDate.now().plusDays(7);
 
-        var body = """
+        String body = """
                 {
                     "segments": [
                         {
@@ -50,13 +51,13 @@ class BookingControllerTest {
                 }
                 """.formatted(futureDate);
 
-        var result = mockMvc.perform(post("/api/booking")
+        MvcResult result = mockMvc.perform(post("/api/booking")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var response = objectMapper.readValue(
+        ItineraryResponse response = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 ItineraryResponse.class);
 
@@ -72,14 +73,14 @@ class BookingControllerTest {
 
     @Test
     void findRoutes_viaApi_returns200WithRouteOptions() throws Exception {
-        var result = mockMvc.perform(get("/api/booking/routes")
+        MvcResult result = mockMvc.perform(get("/api/booking/routes")
                         .param("from", "Timisoara")
                         .param("to", "Bucuresti")
                         .param("date", LocalDate.now().plusDays(7).toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var routes = objectMapper.readValue(
+        List<RouteOption> routes = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<RouteOption>>() {});
 
@@ -99,9 +100,9 @@ class BookingControllerTest {
 
     @Test
     void notifyDelay_withExistingBooking_returns200() throws Exception {
-        var futureDate = LocalDate.now().plusDays(30);
+        LocalDate futureDate = LocalDate.now().plusDays(30);
 
-        var bookingBody = """
+        String bookingBody = """
                 {
                     "segments": [
                         {

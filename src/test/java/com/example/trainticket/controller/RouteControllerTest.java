@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -32,11 +33,11 @@ class RouteControllerTest {
 
     @Test
     void getAll_returnsAllRoutes() throws Exception {
-        var result = mockMvc.perform(get("/api/admin/routes"))
+        MvcResult result = mockMvc.perform(get("/api/admin/routes"))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var routes = objectMapper.readValue(
+        List<RouteInfo> routes = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<RouteInfo>>() {});
 
@@ -45,11 +46,11 @@ class RouteControllerTest {
 
     @Test
     void getById_returnsRoute() throws Exception {
-        var result = mockMvc.perform(get("/api/admin/routes/1"))
+        MvcResult result = mockMvc.perform(get("/api/admin/routes/1"))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var route = objectMapper.readValue(
+        RouteInfo route = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 RouteInfo.class);
 
@@ -65,19 +66,19 @@ class RouteControllerTest {
 
     @Test
     void create_withNewStations_createsStationsAndRoute() throws Exception {
-        var body = """
+        String body = """
                 {
                     "stations": ["TestCityA", "TestCityB", "TestCityC"]
                 }
                 """;
 
-        var result = mockMvc.perform(post("/api/admin/routes")
+        MvcResult result = mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var route = objectMapper.readValue(
+        RouteInfo route = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 RouteInfo.class);
 
@@ -87,19 +88,19 @@ class RouteControllerTest {
 
     @Test
     void create_withExistingStations_returnsRoute() throws Exception {
-        var body = """
+        String body = """
                 {
                     "stations": ["Cluj-Napoca", "Turda", "Medias"]
                 }
                 """;
 
-        var result = mockMvc.perform(post("/api/admin/routes")
+        MvcResult result = mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var route = objectMapper.readValue(
+        RouteInfo route = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 RouteInfo.class);
 
@@ -108,7 +109,7 @@ class RouteControllerTest {
 
     @Test
     void create_singleStation_returns400() throws Exception {
-        var body = """
+        String body = """
                 {
                     "stations": ["Cluj-Napoca"]
                 }
@@ -122,7 +123,7 @@ class RouteControllerTest {
 
     @Test
     void create_duplicateStations_returns400() throws Exception {
-        var body = """
+        String body = """
                 {
                     "stations": ["Cluj-Napoca", "Cluj-Napoca"]
                 }
@@ -136,35 +137,35 @@ class RouteControllerTest {
 
     @Test
     void update_routeWithNoTrains_updatesStations() throws Exception {
-        var body = """
+        String body = """
                 {
                     "stations": ["TestCityA", "TestCityB", "TestCityC"]
                 }
                 """;
 
-        var createResult = mockMvc.perform(post("/api/admin/routes")
+        MvcResult createResult = mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var created = objectMapper.readValue(
+        RouteInfo created = objectMapper.readValue(
                 createResult.getResponse().getContentAsString(),
                 RouteInfo.class);
 
-        var updateBody = """
+        String updateBody = """
                 {
                     "stations": ["TestCityA", "TestCityD", "TestCityC"]
                 }
                 """;
 
-        var updateResult = mockMvc.perform(put("/api/admin/routes/" + created.id())
+        MvcResult updateResult = mockMvc.perform(put("/api/admin/routes/" + created.id())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var updated = objectMapper.readValue(
+        RouteInfo updated = objectMapper.readValue(
                 updateResult.getResponse().getContentAsString(),
                 RouteInfo.class);
 
@@ -173,23 +174,23 @@ class RouteControllerTest {
 
     @Test
     void update_routeWithTrains_returns409() throws Exception {
-        var routeBody = """
+        String routeBody = """
                 {
                     "stations": ["Viena", "Arad", "Timisoara"]
                 }
                 """;
 
-        var createResult = mockMvc.perform(post("/api/admin/routes")
+        MvcResult createResult = mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(routeBody))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var created = objectMapper.readValue(
+        RouteInfo created = objectMapper.readValue(
                 createResult.getResponse().getContentAsString(),
                 RouteInfo.class);
 
-        var trainBody = """
+        String trainBody = """
                 {
                     "trainCode": "TRA-ROUTE-TEST",
                     "capacity": 100,
@@ -205,7 +206,7 @@ class RouteControllerTest {
                         .content(trainBody))
                 .andExpect(status().isCreated());
 
-        var updateBody = """
+        String updateBody = """
                 {
                     "stations": ["Viena", "Timisoara"]
                 }
@@ -219,19 +220,19 @@ class RouteControllerTest {
 
     @Test
     void delete_routeWithNoTrains_succeeds() throws Exception {
-        var body = """
+        String body = """
                 {
                     "stations": ["TestCityA", "TestCityB"]
                 }
                 """;
 
-        var createResult = mockMvc.perform(post("/api/admin/routes")
+        MvcResult createResult = mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var created = objectMapper.readValue(
+        RouteInfo created = objectMapper.readValue(
                 createResult.getResponse().getContentAsString(),
                 RouteInfo.class);
 
@@ -244,23 +245,23 @@ class RouteControllerTest {
 
     @Test
     void delete_routeWithTrains_deletesTrainsAndRoute() throws Exception {
-        var routeBody = """
+        String routeBody = """
                 {
                     "stations": ["TestCityA", "TestCityB", "TestCityC"]
                 }
                 """;
 
-        var createResult = mockMvc.perform(post("/api/admin/routes")
+        MvcResult createResult = mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(routeBody))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var created = objectMapper.readValue(
+        RouteInfo created = objectMapper.readValue(
                 createResult.getResponse().getContentAsString(),
                 RouteInfo.class);
 
-        var trainBody = """
+        String trainBody = """
                 {
                     "trainCode": "TRA-ROUTE-DEL",
                     "capacity": 50,

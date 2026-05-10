@@ -145,13 +145,17 @@ public class BookingService {
         Station destination = stationRepository.findByName(to)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Station not found: " + to));
 
-        if (departure.equals(destination)) return List.of();
+        if (departure.equals(destination)) {
+            return List.of();
+        }
 
         List<Train> trains = getOperatingTrains(date);
-        if (trains.isEmpty()) return List.of();
+        if (trains.isEmpty()) {
+            return List.of();
+        }
 
         Map<String, Train> trainByCode = trains.stream()
-                .collect(Collectors.toMap(Train::getTrainCode, t -> t));
+                .collect(Collectors.toMap(Train::getTrainCode, train -> train));
 
         List<Route> allRoutes = routeRepository.findAllWithStations();
         Map<String, Travel> travelCache = new HashMap<>();
@@ -176,7 +180,9 @@ public class BookingService {
 
             for (Edge edge : graph.getOrDefault(node.station, List.of())) {
                 boolean sameTrain = lastTrain != null && lastTrain.equals(edge.trainCode);
-                if (!sameTrain && edge.departureTime.isBefore(node.arrivalTime)) continue;
+                if (!sameTrain && edge.departureTime.isBefore(node.arrivalTime)) {
+                    continue;
+                }
 
                 List<InternalSegment> newSegments = appendSegment(node.segments, edge, node.station, sameTrain);
                 pq.add(new Node(edge.toStation, edge.arrivalTime, newSegments));
@@ -190,8 +196,8 @@ public class BookingService {
     private List<Train> getOperatingTrains(LocalDate date) {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
         return trainRepository.findAll().stream()
-                .filter(t -> {
-                    var days = t.getOperatingDays();
+                .filter(train -> {
+                    Set<DayOfWeek> days = train.getOperatingDays();
                     return days == null || days.isEmpty() || days.contains(dayOfWeek);
                 })
                 .toList();
@@ -205,9 +211,9 @@ public class BookingService {
         int minSeats = computeMinRemainingSeats(node.segments, date, trainByCode, allRoutes, travelCache);
         return new RouteOption(
                 node.segments.stream()
-                        .map(s -> new SegmentOption(
-                                s.trainCode(), s.departureStation(), s.arrivalStation(),
-                                s.departureTime().format(TIME_FMT), s.arrivalTime().format(TIME_FMT)))
+                        .map(seg -> new SegmentOption(
+                                seg.trainCode(), seg.departureStation(), seg.arrivalStation(),
+                                seg.departureTime().format(TIME_FMT), seg.arrivalTime().format(TIME_FMT)))
                         .toList(),
                 totalMin, transfers, minSeats);
     }
@@ -217,17 +223,17 @@ public class BookingService {
                                          Map<String, Travel> travelCache) {
         int min = Integer.MAX_VALUE;
         for (InternalSegment seg : segments) {
-            Train t = trainByCode.get(seg.trainCode());
-            if (t == null) {
+            Train train = trainByCode.get(seg.trainCode());
+            if (train == null) {
                 continue;
             }
-            Route r = findMatchingRoute(allRoutes, t, seg.departureStation(), seg.arrivalStation());
-            if (r == null) {
+            Route route = findMatchingRoute(allRoutes, train, seg.departureStation(), seg.arrivalStation());
+            if (route == null) {
                 continue;
             }
-            String cacheKey = t.getTrainCode() + ":" + date;
-            Travel travel = travelCache.computeIfAbsent(cacheKey, k -> travelService.findOrCreate(t, date));
-            min = Math.min(min, travel.getRouteSeats().getOrDefault(r, 0));
+            String cacheKey = train.getTrainCode() + ":" + date;
+            Travel travel = travelCache.computeIfAbsent(cacheKey, k -> travelService.findOrCreate(train, date));
+            min = Math.min(min, travel.getRouteSeats().getOrDefault(route, 0));
         }
         return min == Integer.MAX_VALUE ? 0 : min;
     }
@@ -250,19 +256,23 @@ public class BookingService {
 
     private Map<String, List<Edge>> buildGraph(List<Train> trains, LocalDate date) {
         Map<String, List<Edge>> graph = new HashMap<>();
-        for (Train t : trains) {
-            List<Station> stations = t.getRoute().getStations();
-            for (int i = 0; i < stations.size() - 1; i++) {
-                Station fromSt = stations.get(i);
-                Station toSt = stations.get(i + 1);
-                LocalDateTime refDep = t.getDepartureTimeFrom(fromSt);
-                LocalDateTime refArr = t.getArrivalTimeFrom(toSt);
-                if (refDep == null || refArr == null) continue;
+        for (Train train : trains) {
+            List<Station> stations = train.getRoute().getStations();
+            for (int idx = 0; idx < stations.size() - 1; idx++) {
+                Station fromSt = stations.get(idx);
+                Station toSt = stations.get(idx + 1);
+                LocalDateTime refDep = train.getDepartureTimeFrom(fromSt);
+                LocalDateTime refArr = train.getArrivalTimeFrom(toSt);
+                if (refDep == null || refArr == null) {
+                    continue;
+                }
                 LocalDateTime depTime = LocalDateTime.of(date, refDep.toLocalTime());
                 LocalDateTime arrTime = LocalDateTime.of(date, refArr.toLocalTime());
-                if (arrTime.isBefore(depTime)) arrTime = arrTime.plusDays(1);
+                if (arrTime.isBefore(depTime)) {
+                    arrTime = arrTime.plusDays(1);
+                }
                 graph.computeIfAbsent(fromSt.getName(), k -> new ArrayList<>())
-                        .add(new Edge(toSt.getName(), t.getTrainCode(), depTime, arrTime));
+                        .add(new Edge(toSt.getName(), train.getTrainCode(), depTime, arrTime));
             }
         }
         return graph;
@@ -270,10 +280,10 @@ public class BookingService {
 
     public Route findMostDirectRoute(Station departure, Station arrival) {
         return routeRepository.findAllWithStations().stream()
-                .filter(r -> !r.getStations().isEmpty()
-                        && r.getStations().getFirst().equals(departure)
-                        && r.getStations().getLast().equals(arrival))
-                .min(Comparator.comparingInt(r -> r.getStations().size()))
+                .filter(route -> !route.getStations().isEmpty()
+                        && route.getStations().getFirst().equals(departure)
+                        && route.getStations().getLast().equals(arrival))
+                .min(Comparator.comparingInt(route -> route.getStations().size()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "No route from " + departure.getName() + " to " + arrival.getName()));
     }
@@ -342,12 +352,14 @@ public class BookingService {
             return List.of();
         }
 
-        var dayOfWeek = date.getDayOfWeek();
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
 
         return trainRepository.findAll().stream()
                 .filter(train -> {
-                    var days = train.getOperatingDays();
-                    if (days != null && !days.isEmpty() && !days.contains(dayOfWeek)) return false;
+                    Set<DayOfWeek> days = train.getOperatingDays();
+                    if (days != null && !days.isEmpty() && !days.contains(dayOfWeek)) {
+                        return false;
+                    }
                     return train.isSubroute(route);
                 })
                 .map(train -> {
@@ -359,12 +371,12 @@ public class BookingService {
 
     private Route findMatchingRoute(List<Route> allRoutes, Train train, String departureStation, String arrivalStation) {
         return allRoutes.stream()
-                .filter(r -> {
-                    List<Station> stations = r.getStations();
+                .filter(route -> {
+                    List<Station> stations = route.getStations();
                     return stations.size() >= 2
                             && stations.getFirst().getName().equals(departureStation)
                             && stations.getLast().getName().equals(arrivalStation)
-                            && train.isSubroute(r);
+                            && train.isSubroute(route);
                 })
                 .findFirst()
                 .orElse(null);

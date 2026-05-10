@@ -84,16 +84,22 @@ public class RouteService {
     public Route createRoute(List<Station> stations) {
         List<Route> allRoutes = routeRepository.findAllWithStations();
         Route existing = findMatching(allRoutes, stations);
-        if (existing != null) return existing;
+        if (existing != null) {
+            return existing;
+        }
 
         Route route = routeRepository.save(new Route(stations, null));
         allRoutes.add(route);
 
-        for (int i = 0; i < stations.size(); i++) {
-            for (int j = i + 1; j < stations.size(); j++) {
-                if (i == 0 && j == stations.size() - 1) continue;
-                List<Station> sub = stations.subList(i, j + 1);
-                if (findMatching(allRoutes, sub) != null) continue;
+        for (int fromIdx = 0; fromIdx < stations.size(); fromIdx++) {
+            for (int toIdx = fromIdx + 1; toIdx < stations.size(); toIdx++) {
+                if (fromIdx == 0 && toIdx == stations.size() - 1) {
+                    continue;
+                }
+                List<Station> sub = stations.subList(fromIdx, toIdx + 1);
+                if (findMatching(allRoutes, sub) != null) {
+                    continue;
+                }
                 Route subRoute = routeRepository.save(new Route(new ArrayList<>(sub), null));
                 allRoutes.add(subRoute);
             }
@@ -103,17 +109,21 @@ public class RouteService {
 
     private Route findMatching(List<Route> routes, List<Station> stations) {
         List<Long> ids = stations.stream().map(Station::getId).toList();
-        for (Route r : routes) {
-            List<Station> rs = r.getStations();
-            if (rs.size() != ids.size()) continue;
+        for (Route route : routes) {
+            List<Station> routeStations = route.getStations();
+            if (routeStations.size() != ids.size()) {
+                continue;
+            }
             boolean match = true;
-            for (int i = 0; i < ids.size(); i++) {
-                if (!rs.get(i).getId().equals(ids.get(i))) {
+            for (int idx = 0; idx < ids.size(); idx++) {
+                if (!routeStations.get(idx).getId().equals(ids.get(idx))) {
                     match = false;
                     break;
                 }
             }
-            if (match) return r;
+            if (match) {
+                return route;
+            }
         }
         return null;
     }
@@ -130,16 +140,16 @@ public class RouteService {
         }
 
         Map<String, Station> byName = stationRepository.findByNameIn(stationNames)
-                .stream().collect(Collectors.toMap(Station::getName, s -> s));
+                .stream().collect(Collectors.toMap(Station::getName, station -> station));
 
         List<Station> result = new ArrayList<>();
         for (String name : stationNames) {
-            Station s = byName.get(name);
-            if (s == null) {
-                s = stationRepository.save(new Station(name));
-                byName.put(name, s);
+            Station station = byName.get(name);
+            if (station == null) {
+                station = stationRepository.save(new Station(name));
+                byName.put(name, station);
             }
-            result.add(s);
+            result.add(station);
         }
         return result;
     }

@@ -29,9 +29,9 @@ public class TravelService {
                 .orElseGet(() -> {
                     Map<Route, Integer> seats = new HashMap<>();
                     List<Route> allRoutes = routeRepository.findAllWithStations();
-                    for (Route r : allRoutes) {
-                        if (train.isSubroute(r)) {
-                            seats.put(r, train.getCapacity());
+                    for (Route route : allRoutes) {
+                        if (train.isSubroute(route)) {
+                            seats.put(route, train.getCapacity());
                         }
                     }
                     return travelRepository.save(new Travel(train, date, seats));
@@ -49,11 +49,11 @@ public class TravelService {
         int arrIdx = trainStations.indexOf(route.getArrival());
 
         Set<Route> routes = Map.copyOf(seats).keySet();
-        for (var r : routes) {
-            int rDep = trainStations.indexOf(r.getDeparture());
-            int rArr = trainStations.indexOf(r.getArrival());
+        for (Route affectedRoute : routes) {
+            int rDep = trainStations.indexOf(affectedRoute.getDeparture());
+            int rArr = trainStations.indexOf(affectedRoute.getArrival());
             if (depIdx < rArr && rDep < arrIdx) {
-                seats.merge(r, -1, Integer::sum);
+                seats.merge(affectedRoute, -1, Integer::sum);
             }
         }
     }

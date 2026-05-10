@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.InputStream;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -37,67 +38,71 @@ public class DataSeeder implements CommandLineRunner {
     @SuppressWarnings("unchecked")
     public void run(String... args) throws Exception {
         Map<String, Object> data;
-        try (var is = new ClassPathResource("seed-data.yml").getInputStream()) {
+        try (InputStream is = new ClassPathResource("seed-data.yml").getInputStream()) {
             data = new Yaml().load(is);
         }
 
-        var stationNames = (List<String>) data.get("stations");
-        var routeDefs = (List<List<String>>) data.get("routes");
-        var trainDefs = (List<Map<String, Object>>) data.get("trains");
-        var userDefs = (List<Map<String, String>>) data.get("users");
+        List<String> stationNames = (List<String>) data.get("stations");
+        List<List<String>> routeDefs = (List<List<String>>) data.get("routes");
+        List<Map<String, Object>> trainDefs = (List<Map<String, Object>>) data.get("trains");
+        List<Map<String, String>> userDefs = (List<Map<String, String>>) data.get("users");
 
         Map<String, Station> stationMap = new LinkedHashMap<>();
-        for (Station s : stationRepository.findByNameIn(stationNames)) {
-            stationMap.put(s.getName(), s);
+        for (Station station : stationRepository.findByNameIn(stationNames)) {
+            stationMap.put(station.getName(), station);
         }
-        for (var name : stationNames) {
+        for (String name : stationNames) {
             if (!stationMap.containsKey(name)) {
                 stationMap.put(name, stationRepository.save(new Station(name)));
             }
         }
 
         List<Route> routeList = new ArrayList<>();
-        for (var names : routeDefs) {
+        for (List<String> names : routeDefs) {
             routeList.add(routeService.createRoute(names.stream().map(stationMap::get).toList()));
         }
 
-        for (var td : trainDefs) {
-            var code = (String) td.get("code");
-            if (trainRepository.findByTrainCode(code).isPresent()) continue;
+        for (Map<String, Object> trainDef : trainDefs) {
+            String code = (String) trainDef.get("code");
+            if (trainRepository.findByTrainCode(code).isPresent()) {
+                continue;
+            }
 
-            var capacity = (int) td.get("capacity");
-            var ri = (int) td.get("routeIndex");
-            var arrivalsRaw = (Map<String, String>) td.get("arrivals");
-            var stopsRaw = (Map<String, Integer>) td.get("stops");
-            var daysRaw = (List<String>) td.get("operatingDays");
+            int capacity = (int) trainDef.get("capacity");
+            int routeIndex = (int) trainDef.get("routeIndex");
+            Map<String, String> arrivalsRaw = (Map<String, String>) trainDef.get("arrivals");
+            Map<String, Integer> stopsRaw = (Map<String, Integer>) trainDef.get("stops");
+            List<String> daysRaw = (List<String>) trainDef.get("operatingDays");
 
             Map<Station, LocalDateTime> arrivals = new LinkedHashMap<>();
-            for (var e : arrivalsRaw.entrySet()) {
-                var parts = e.getValue().split(":");
-                arrivals.put(stationMap.get(e.getKey()),
+            for (Map.Entry<String, String> entry : arrivalsRaw.entrySet()) {
+                String[] parts = entry.getValue().split(":");
+                arrivals.put(stationMap.get(entry.getKey()),
                         LocalDateTime.of(2025, 1, 1, Integer.parseInt(parts[0]), Integer.parseInt(parts[1])));
             }
             Map<Station, Integer> stops = new LinkedHashMap<>();
-            for (var e : stopsRaw.entrySet()) {
-                stops.put(stationMap.get(e.getKey()), e.getValue());
+            for (Map.Entry<String, Integer> entry : stopsRaw.entrySet()) {
+                stops.put(stationMap.get(entry.getKey()), entry.getValue());
             }
 
-            Train train = new Train(code, capacity, routeList.get(ri));
+            Train train = new Train(code, capacity, routeList.get(routeIndex));
             train.setArrivals(arrivals);
             train.setStopDurations(stops);
             if (daysRaw != null) {
-                var days = EnumSet.noneOf(DayOfWeek.class);
-                for (var d : daysRaw) days.add(DayOfWeek.valueOf(d));
+                EnumSet<DayOfWeek> days = EnumSet.noneOf(DayOfWeek.class);
+                for (String day : daysRaw) {
+                    days.add(DayOfWeek.valueOf(day));
+                }
                 train.setOperatingDays(days);
             }
             trainRepository.save(train);
         }
 
         if (userDefs != null) {
-            for (var ud : userDefs) {
-                var email = ud.get("email");
+            for (Map<String, String> userDef : userDefs) {
+                String email = userDef.get("email");
                 if (userRepository.findByEmail(email).isEmpty()) {
-                    userRepository.save(new User(email, ud.get("name")));
+                    userRepository.save(new User(email, userDef.get("name")));
                 }
             }
         }

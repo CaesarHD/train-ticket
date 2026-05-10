@@ -8,7 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.Set;
 
 import static com.example.trainticket.util.Constants.BOOKING_THRESHOLD;
 
@@ -41,7 +43,7 @@ public class RouteValidator {
     }
 
     public void validateOperatingDay(Train train, LocalDate travelDate) {
-        var days = train.getOperatingDays();
+        Set<DayOfWeek> days = train.getOperatingDays();
         if (days != null && !days.isEmpty() && !days.contains(travelDate.getDayOfWeek())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Train " + train.getTrainCode() + " does not operate on " + travelDate.getDayOfWeek());

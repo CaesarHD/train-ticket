@@ -13,34 +13,34 @@ class TrainScheduleTest {
 
     @Test
     void getArrivalTimeFrom_returnsCorrectTime() {
-        Station a = new Station("A"); a.setId(1L);
-        Station b = new Station("B"); b.setId(2L);
-        Station c = new Station("C"); c.setId(3L);
+        Station stationA = new Station("A"); stationA.setId(1L);
+        Station stationB = new Station("B"); stationB.setId(2L);
+        Station stationC = new Station("C"); stationC.setId(3L);
 
-        Route route = new Route(List.of(a, b, c), null);
+        Route route = new Route(List.of(stationA, stationB, stationC), null);
 
         LocalDateTime timeB = LocalDateTime.of(2025, 1, 1, 10, 0);
         Train train = new Train("T1", 100, route);
         Map<Station, LocalDateTime> arrivals = new HashMap<>();
-        arrivals.put(a, LocalDateTime.of(2025, 1, 1, 9, 0));
-        arrivals.put(b, timeB);
-        arrivals.put(c, LocalDateTime.of(2025, 1, 1, 11, 0));
+        arrivals.put(stationA, LocalDateTime.of(2025, 1, 1, 9, 0));
+        arrivals.put(stationB, timeB);
+        arrivals.put(stationC, LocalDateTime.of(2025, 1, 1, 11, 0));
         train.setArrivals(arrivals);
 
-        assertEquals(timeB, train.getArrivalTimeFrom(b));
+        assertEquals(timeB, train.getArrivalTimeFrom(stationB));
     }
 
     @Test
     void getArrivalTimeFrom_unknownStation_returnsNull() {
-        Station a = new Station("A"); a.setId(1L);
-        Station b = new Station("B"); b.setId(2L);
+        Station stationA = new Station("A"); stationA.setId(1L);
+        Station stationB = new Station("B"); stationB.setId(2L);
         Station unknown = new Station("X"); unknown.setId(3L);
 
-        Route route = new Route(List.of(a, b), null);
+        Route route = new Route(List.of(stationA, stationB), null);
         Train train = new Train("T1", 100, route);
         Map<Station, LocalDateTime> arrivals = new HashMap<>();
-        arrivals.put(a, LocalDateTime.of(2025, 1, 1, 9, 0));
-        arrivals.put(b, LocalDateTime.of(2025, 1, 1, 10, 0));
+        arrivals.put(stationA, LocalDateTime.of(2025, 1, 1, 9, 0));
+        arrivals.put(stationB, LocalDateTime.of(2025, 1, 1, 10, 0));
         train.setArrivals(arrivals);
 
         assertNull(train.getArrivalTimeFrom(unknown));

@@ -119,7 +119,7 @@ public class TrainService {
 
         Map<String, Station> byName = stations.stream().collect(Collectors.toMap(Station::getName, s -> s));
         Map<Station, LocalDateTime> result = new LinkedHashMap<>();
-        for (var entry : arrivals.entrySet()) {
+        for (Map.Entry<String, String> entry : arrivals.entrySet()) {
             String[] parts = entry.getValue().split(":");
             result.put(byName.get(entry.getKey()),
                     LocalDateTime.of(2025, 1, 1,
@@ -139,17 +139,19 @@ public class TrainService {
 
         Map<String, Station> byName = stations.stream().collect(Collectors.toMap(Station::getName, s -> s));
         Map<Station, Integer> result = new LinkedHashMap<>();
-        for (var entry : stops.entrySet()) {
+        for (Map.Entry<String, Integer> entry : stops.entrySet()) {
             result.put(byName.get(entry.getKey()), entry.getValue());
         }
         return result;
     }
 
     private Set<DayOfWeek> buildDays(List<String> days) {
-        if (days == null) return EnumSet.noneOf(DayOfWeek.class);
+        if (days == null) {
+            return EnumSet.noneOf(DayOfWeek.class);
+        }
         Set<DayOfWeek> result = EnumSet.noneOf(DayOfWeek.class);
-        for (String d : days) {
-            result.add(DayOfWeek.valueOf(d.toUpperCase()));
+        for (String day : days) {
+            result.add(DayOfWeek.valueOf(day.toUpperCase()));
         }
         return result;
     }

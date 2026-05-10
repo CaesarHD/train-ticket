@@ -81,7 +81,7 @@ class BookingServiceTest {
 
         routeService.createRoute(List.of(dej, cluj, turda, medias, sighisoara, brasov));
         Route trainRoute = routeService.createRoute(List.of(dej, medias, sighisoara));
-        var train = new Train("T100", 100, trainRoute);
+        Train train = new Train("T100", 100, trainRoute);
         train.setOperatingDays(EnumSet.allOf(DayOfWeek.class));
         Map<Station, LocalDateTime> arrivals = new LinkedHashMap<>();
         arrivals.put(dej, LocalDateTime.of(2025, 1, 1, 5, 0));
@@ -119,7 +119,7 @@ class BookingServiceTest {
         entityManager.flush();
         entityManager.clear();
 
-        var savedItinerary = itineraryRepository.findById(result.id()).orElseThrow();
+        Itinerary savedItinerary = itineraryRepository.findById(result.id()).orElseThrow();
         Booking saved = savedItinerary.getBookings().getFirst();
         assertNotNull(saved);
         assertEquals("T100", saved.getTrain().getTrainCode());
@@ -170,9 +170,9 @@ class BookingServiceTest {
 
     @Test
     void bookTicket_throwsWhenNoAvailableSeats() {
-        for (int i = 0; i < 100; i++) {
+        for (int idx = 0; idx < 100; idx++) {
             bookingService.bookTicket(
-                    req("T100", "Medias", "Sighisoara", LocalDate.now(), i + "@mail.com"));
+                    req("T100", "Medias", "Sighisoara", LocalDate.now(), idx + "@mail.com"));
         }
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -204,18 +204,18 @@ class BookingServiceTest {
 
     @Test
     void bookTicket_succeedsWhenOperatingDay() {
-        var a = stationRepository.save(new Station("DepA"));
-        var b = stationRepository.save(new Station("ArrB"));
-        routeService.createRoute(List.of(a, b));
-        var train = new Train("T-OPDAY", 50, routeService.createRoute(List.of(a, b)));
+        Station stationA = stationRepository.save(new Station("DepA"));
+        Station stationB = stationRepository.save(new Station("ArrB"));
+        routeService.createRoute(List.of(stationA, stationB));
+        Train train = new Train("T-OPDAY", 50, routeService.createRoute(List.of(stationA, stationB)));
         train.setOperatingDays(EnumSet.of(DayOfWeek.MONDAY));
         Map<Station, LocalDateTime> arrivals = new LinkedHashMap<>();
-        arrivals.put(a, LocalDateTime.of(2025, 1, 1, 10, 0));
-        arrivals.put(b, LocalDateTime.of(2025, 1, 1, 11, 0));
+        arrivals.put(stationA, LocalDateTime.of(2025, 1, 1, 10, 0));
+        arrivals.put(stationB, LocalDateTime.of(2025, 1, 1, 11, 0));
         train.setArrivals(arrivals);
         Map<Station, Integer> stops = new LinkedHashMap<>();
-        stops.put(a, 0);
-        stops.put(b, 0);
+        stops.put(stationA, 0);
+        stops.put(stationB, 0);
         train.setStopDurations(stops);
         trainRepository.save(train);
 
@@ -230,10 +230,10 @@ class BookingServiceTest {
 
     @Test
     void bookTicket_throwsWhenNotOperatingDay() {
-        var a = stationRepository.save(new Station("DepC"));
-        var b = stationRepository.save(new Station("ArrD"));
-        routeService.createRoute(List.of(a, b));
-        var train = new Train("T-NOPDAY", 50, routeService.createRoute(List.of(a, b)));
+        Station stationA = stationRepository.save(new Station("DepC"));
+        Station stationB = stationRepository.save(new Station("ArrD"));
+        routeService.createRoute(List.of(stationA, stationB));
+        Train train = new Train("T-NOPDAY", 50, routeService.createRoute(List.of(stationA, stationB)));
         train.setOperatingDays(EnumSet.of(DayOfWeek.MONDAY));
         trainRepository.save(train);
 
@@ -249,9 +249,9 @@ class BookingServiceTest {
     void bookTicket_sendsEmailForEachBooking() {
         int numBookings = 3;
 
-        for (int i = 0; i < numBookings; i++) {
+        for (int idx = 0; idx < numBookings; idx++) {
             bookingService.bookTicket(
-                    req("T100", "Dej", "Sighisoara", LocalDate.now(), "user" + i + "@mail.com"));
+                    req("T100", "Dej", "Sighisoara", LocalDate.now(), "user" + idx + "@mail.com"));
         }
 
         verify(emailService, times(numBookings)).sendConfirmation(any(), any(), any(), any());

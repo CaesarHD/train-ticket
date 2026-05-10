@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
@@ -42,57 +43,57 @@ class TrainControllerTest {
 
     @Test
     void getAvailableTrains_ClujToBucuresti_returnsTRA001() throws Exception {
-        var futureDate = LocalDate.now().plusDays(7);
+        LocalDate futureDate = LocalDate.now().plusDays(7);
 
-        var result = mockMvc.perform(get("/api/trains/available")
+        MvcResult result = mockMvc.perform(get("/api/trains/available")
                         .param("from", "Cluj-Napoca")
                         .param("to", "Bucuresti")
                         .param("date", futureDate.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var trains = objectMapper.readValue(
+        List<TrainResponse> trains = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<TrainResponse>>() {});
 
         assertThat(trains).hasSize(1);
-        var t = trains.get(0);
-        assertThat(t.trainCode()).isEqualTo("TRA-001");
-        assertThat(t.departureStation()).isEqualTo("Cluj-Napoca");
-        assertThat(t.departureTime()).isEqualTo("06:00");
-        assertThat(t.arrivalStation()).isEqualTo("Bucuresti");
-        assertThat(t.arrivalTime()).isEqualTo("13:00");
-        assertThat(t.routeDeparture()).isEqualTo("Cluj-Napoca");
-        assertThat(t.routeArrival()).isEqualTo("Bucuresti");
+        TrainResponse firstTrain = trains.get(0);
+        assertThat(firstTrain.trainCode()).isEqualTo("TRA-001");
+        assertThat(firstTrain.departureStation()).isEqualTo("Cluj-Napoca");
+        assertThat(firstTrain.departureTime()).isEqualTo("06:00");
+        assertThat(firstTrain.arrivalStation()).isEqualTo("Bucuresti");
+        assertThat(firstTrain.arrivalTime()).isEqualTo("13:00");
+        assertThat(firstTrain.routeDeparture()).isEqualTo("Cluj-Napoca");
+        assertThat(firstTrain.routeArrival()).isEqualTo("Bucuresti");
     }
 
     @Test
     void getAvailableTrains_DejToSibiu_weekday_returnsTRA002() throws Exception {
-        var date = LocalDate.now().plusDays(7);
+        LocalDate date = LocalDate.now().plusDays(7);
         if (date.getDayOfWeek().name().matches("SATURDAY|SUNDAY")) {
             date = date.plusDays(2);
         }
 
-        var result = mockMvc.perform(get("/api/trains/available")
+        MvcResult result = mockMvc.perform(get("/api/trains/available")
                         .param("from", "Dej")
                         .param("to", "Sibiu")
                         .param("date", date.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var trains = objectMapper.readValue(
+        List<TrainResponse> trains = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<TrainResponse>>() {});
 
         assertThat(trains).hasSize(1);
-        var t = trains.get(0);
-        assertThat(t.trainCode()).isEqualTo("TRA-002");
-        assertThat(t.departureStation()).isEqualTo("Dej");
-        assertThat(t.departureTime()).isEqualTo("05:00");
-        assertThat(t.arrivalStation()).isEqualTo("Sibiu");
-        assertThat(t.arrivalTime()).isEqualTo("08:15");
-        assertThat(t.routeDeparture()).isEqualTo("Dej");
-        assertThat(t.routeArrival()).isEqualTo("Sibiu");
+        TrainResponse firstTrain = trains.get(0);
+        assertThat(firstTrain.trainCode()).isEqualTo("TRA-002");
+        assertThat(firstTrain.departureStation()).isEqualTo("Dej");
+        assertThat(firstTrain.departureTime()).isEqualTo("05:00");
+        assertThat(firstTrain.arrivalStation()).isEqualTo("Sibiu");
+        assertThat(firstTrain.arrivalTime()).isEqualTo("08:15");
+        assertThat(firstTrain.routeDeparture()).isEqualTo("Dej");
+        assertThat(firstTrain.routeArrival()).isEqualTo("Sibiu");
     }
 
     @Test
@@ -106,16 +107,16 @@ class TrainControllerTest {
 
     @Test
     void getAvailableTrains_ClujToTurda_monday_returnsMultiple() throws Exception {
-        var monday = LocalDate.now().plusDays(1).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        LocalDate monday = LocalDate.now().plusDays(1).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
 
-        var result = mockMvc.perform(get("/api/trains/available")
+        MvcResult result = mockMvc.perform(get("/api/trains/available")
                         .param("from", "Cluj-Napoca")
                         .param("to", "Turda")
                         .param("date", monday.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var trains = objectMapper.readValue(
+        List<TrainResponse> trains = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<TrainResponse>>() {});
 
@@ -126,7 +127,7 @@ class TrainControllerTest {
 
     @Test
     void getAllBookings_noTravelForDate_returns404() throws Exception {
-        var futureDate = LocalDate.now().plusDays(100);
+        LocalDate futureDate = LocalDate.now().plusDays(100);
 
         mockMvc.perform(get("/api/trains/admin/bookings/TRA-001")
                         .param("date", futureDate.toString()))
@@ -135,12 +136,12 @@ class TrainControllerTest {
 
     @Test
     void getAllBookings_withExistingBooking_returnsItineraries() throws Exception {
-        var futureDate = LocalDate.now().plusDays(14);
+        LocalDate futureDate = LocalDate.now().plusDays(14);
         if (futureDate.getDayOfWeek().name().matches("SATURDAY|SUNDAY")) {
             futureDate = futureDate.plusDays(2);
         }
 
-        var body = """
+        String body = """
                 {
                     "segments": [
                         {
@@ -160,28 +161,28 @@ class TrainControllerTest {
                         .content(body))
                 .andExpect(status().isCreated());
 
-        var result = mockMvc.perform(get("/api/trains/admin/bookings/TRA-002")
+        MvcResult result = mockMvc.perform(get("/api/trains/admin/bookings/TRA-002")
                         .param("date", futureDate.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var itineraries = objectMapper.readValue(
+        List<ItineraryResponse> itineraries = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<ItineraryResponse>>() {});
 
         assertThat(itineraries).isNotEmpty();
-        var first = itineraries.get(0);
-        assertThat(first.segments()).hasSize(1);
-        assertThat(first.segments().get(0).trainCode()).isEqualTo("TRA-002");
-        assertThat(first.segments().get(0).departureStation()).isEqualTo("Dej");
-        assertThat(first.segments().get(0).arrivalStation()).isEqualTo("Sibiu");
+        ItineraryResponse firstItinerary = itineraries.get(0);
+        assertThat(firstItinerary.segments()).hasSize(1);
+        assertThat(firstItinerary.segments().get(0).trainCode()).isEqualTo("TRA-002");
+        assertThat(firstItinerary.segments().get(0).departureStation()).isEqualTo("Dej");
+        assertThat(firstItinerary.segments().get(0).arrivalStation()).isEqualTo("Sibiu");
     }
 
     @Test
     void createTrain_appearsInAvailableTrains() throws Exception {
-        var date = LocalDate.now().plusDays(7);
+        LocalDate date = LocalDate.now().plusDays(7);
 
-        var createBody = """
+        String createBody = """
                 {
                     "trainCode": "%s",
                     "capacity": 100,
@@ -197,25 +198,25 @@ class TrainControllerTest {
                         .content(createBody))
                 .andExpect(status().isCreated());
 
-        var result = mockMvc.perform(get("/api/trains/available")
+        MvcResult result = mockMvc.perform(get("/api/trains/available")
                         .param("from", "Cluj-Napoca")
                         .param("to", "Medias")
                         .param("date", date.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        var trains = objectMapper.readValue(
+        List<TrainResponse> trains = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 new TypeReference<List<TrainResponse>>() {});
 
-        assertThat(trains).anyMatch(t -> t.trainCode().equals(NEW_TRAIN_CODE));
+        assertThat(trains).anyMatch(train -> train.trainCode().equals(NEW_TRAIN_CODE));
     }
 
     @Test
     void deleteTrain_bookingFails() throws Exception {
-        var date = LocalDate.now().plusDays(7);
+        LocalDate date = LocalDate.now().plusDays(7);
 
-        var createBody = """
+        String createBody = """
                 {
                     "trainCode": "%s",
                     "capacity": 100,
@@ -234,7 +235,7 @@ class TrainControllerTest {
         mockMvc.perform(delete("/api/trains/admin/" + NEW_TRAIN_CODE))
                 .andExpect(status().isNoContent());
 
-        var bookingBody = """
+        String bookingBody = """
                 {
                     "segments": [{"trainCode": "%s", "departureStation": "Cluj-Napoca", "arrivalStation": "Medias"}],
                     "travelDate": "%s",
@@ -251,9 +252,9 @@ class TrainControllerTest {
 
     @Test
     void modifyTrainRoute_oldRouteBookingFails() throws Exception {
-        var date = LocalDate.now().plusDays(7);
+        LocalDate date = LocalDate.now().plusDays(7);
 
-        var createBody = """
+        String createBody = """
                 {
                     "trainCode": "%s",
                     "capacity": 100,
@@ -269,7 +270,7 @@ class TrainControllerTest {
                         .content(createBody))
                 .andExpect(status().isCreated());
 
-        var updateBody = """
+        String updateBody = """
                 {
                     "trainCode": "%s",
                     "capacity": 100,
@@ -285,7 +286,7 @@ class TrainControllerTest {
                         .content(updateBody))
                 .andExpect(status().isOk());
 
-        var oldBookingBody = """
+        String oldBookingBody = """
                 {
                     "segments": [{"trainCode": "%s", "departureStation": "Cluj-Napoca", "arrivalStation": "Medias"}],
                     "travelDate": "%s",
@@ -302,9 +303,9 @@ class TrainControllerTest {
 
     @Test
     void modifyTrainRoute_newRouteBookingSucceeds() throws Exception {
-        var date = LocalDate.now().plusDays(7);
+        LocalDate date = LocalDate.now().plusDays(7);
 
-        var createBody = """
+        String createBody = """
                 {
                     "trainCode": "%s",
                     "capacity": 100,
@@ -320,7 +321,7 @@ class TrainControllerTest {
                         .content(createBody))
                 .andExpect(status().isCreated());
 
-        var updateBody = """
+        String updateBody = """
                 {
                     "trainCode": "%s",
                     "capacity": 100,
@@ -336,7 +337,7 @@ class TrainControllerTest {
                         .content(updateBody))
                 .andExpect(status().isOk());
 
-        var newBookingBody = """
+        String newBookingBody = """
                 {
                     "segments": [{"trainCode": "%s", "departureStation": "Dej", "arrivalStation": "Cluj-Napoca"}],
                     "travelDate": "%s",
@@ -345,13 +346,13 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, date);
 
-        var result = mockMvc.perform(post("/api/booking")
+        MvcResult result = mockMvc.perform(post("/api/booking")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(newBookingBody))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        var response = objectMapper.readValue(
+        ItineraryResponse response = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 ItineraryResponse.class);
 
@@ -363,7 +364,7 @@ class TrainControllerTest {
 
     @Test
     void createTrain_unknownStation_returns400() throws Exception {
-        var body = """
+        String body = """
                 {
                     "trainCode": "TRA-BAD",
                     "capacity": 100,
@@ -382,7 +383,7 @@ class TrainControllerTest {
 
     @Test
     void createTrain_duplicateCode_returns409() throws Exception {
-        var body = """
+        String body = """
                 {
                     "trainCode": "TRA-001",
                     "capacity": 100,
@@ -407,7 +408,7 @@ class TrainControllerTest {
 
     @Test
     void updateTrain_unknownCode_returns404() throws Exception {
-        var body = """
+        String body = """
                 {
                     "trainCode": "TRA-NONEXISTENT",
                     "capacity": 100,
@@ -423,5 +424,4 @@ class TrainControllerTest {
                         .content(body))
                 .andExpect(status().isNotFound());
     }
-
 }

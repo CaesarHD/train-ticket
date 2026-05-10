@@ -34,7 +34,7 @@ class TicketEmailSenderTest {
     void sendEmail_createsAndSendsMimeMessage() {
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        var request = new EmailRequest("user@test.com", "Booking Confirmation: 1", "<html>body</html>", "{\"id\":1}");
+        EmailRequest request = new EmailRequest("user@test.com", "Booking Confirmation: 1", "<html>body</html>", "{\"id\":1}");
 
         emailSender.sendEmail(request);
 
@@ -46,7 +46,7 @@ class TicketEmailSenderTest {
     void sendEmail_handlesExceptionGracefully() {
         when(mailSender.createMimeMessage()).thenThrow(new RuntimeException("SMTP down"));
 
-        var request = new EmailRequest("user@test.com", "Subject", "<html>body</html>", "{}");
+        EmailRequest request = new EmailRequest("user@test.com", "Subject", "<html>body</html>", "{}");
 
         emailSender.sendEmail(request);
     }

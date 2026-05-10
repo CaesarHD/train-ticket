@@ -71,7 +71,9 @@ public class Train {
 
     public LocalDateTime getDepartureTimeFrom(Station station) {
         LocalDateTime arrival = arrivals.get(station);
-        if (arrival == null) return null;
+        if (arrival == null) {
+            return null;
+        }
         Integer stop = stopDurations.getOrDefault(station, 0);
         return arrival.plusMinutes(stop);
     }
@@ -85,17 +87,23 @@ public class Train {
         }
 
         List<Integer> indices = new ArrayList<>();
-        for (Station s : subStations) {
-            int idx = trainStations.indexOf(s);
-            if (idx == -1) return false;
+        for (Station station : subStations) {
+            int idx = trainStations.indexOf(station);
+            if (idx == -1) {
+                return false;
+            }
             indices.add(idx);
         }
 
         boolean increasing = true;
         boolean decreasing = true;
-        for (int i = 1; i < indices.size(); i++) {
-            if (indices.get(i) <= indices.get(i - 1)) increasing = false;
-            if (indices.get(i) >= indices.get(i - 1)) decreasing = false;
+        for (int idx = 1; idx < indices.size(); idx++) {
+            if (indices.get(idx) <= indices.get(idx - 1)) {
+                increasing = false;
+            }
+            if (indices.get(idx) >= indices.get(idx - 1)) {
+                decreasing = false;
+            }
         }
 
         return increasing || decreasing;
