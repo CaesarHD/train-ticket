@@ -13,7 +13,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,10 +106,12 @@ class TrainControllerTest {
 
     @Test
     void getAvailableTrains_ClujToTurda_monday_returnsMultiple() throws Exception {
+        var monday = LocalDate.now().plusDays(1).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+
         var result = mockMvc.perform(get("/api/trains/available")
                         .param("from", "Cluj-Napoca")
                         .param("to", "Turda")
-                        .param("date", "2026-05-18"))
+                        .param("date", monday.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -122,9 +126,9 @@ class TrainControllerTest {
 
     @Test
     void getAllBookings_noTravelForDate_returns404() throws Exception {
-        var futureDate = LocalDate.now().plusDays(30);
+        var futureDate = LocalDate.now().plusDays(100);
 
-        mockMvc.perform(get("/api/trains/bookings/TRA-001")
+        mockMvc.perform(get("/api/trains/admin/bookings/TRA-001")
                         .param("date", futureDate.toString()))
                 .andExpect(status().isNotFound());
     }
@@ -156,7 +160,7 @@ class TrainControllerTest {
                         .content(body))
                 .andExpect(status().isCreated());
 
-        var result = mockMvc.perform(get("/api/trains/bookings/TRA-002")
+        var result = mockMvc.perform(get("/api/trains/admin/bookings/TRA-002")
                         .param("date", futureDate.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -188,7 +192,7 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
 
-        mockMvc.perform(post("/api/trains")
+        mockMvc.perform(post("/api/trains/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isCreated());
@@ -222,12 +226,12 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
 
-        mockMvc.perform(post("/api/trains")
+        mockMvc.perform(post("/api/trains/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(delete("/api/trains/" + NEW_TRAIN_CODE))
+        mockMvc.perform(delete("/api/trains/admin/" + NEW_TRAIN_CODE))
                 .andExpect(status().isNoContent());
 
         var bookingBody = """
@@ -260,7 +264,7 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
 
-        mockMvc.perform(post("/api/trains")
+        mockMvc.perform(post("/api/trains/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isCreated());
@@ -276,7 +280,7 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
 
-        mockMvc.perform(put("/api/trains/" + NEW_TRAIN_CODE)
+        mockMvc.perform(put("/api/trains/admin/" + NEW_TRAIN_CODE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk());
@@ -311,7 +315,7 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
 
-        mockMvc.perform(post("/api/trains")
+        mockMvc.perform(post("/api/trains/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isCreated());
@@ -327,7 +331,7 @@ class TrainControllerTest {
                 }
                 """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
 
-        mockMvc.perform(put("/api/trains/" + NEW_TRAIN_CODE)
+        mockMvc.perform(put("/api/trains/admin/" + NEW_TRAIN_CODE)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk());
@@ -370,7 +374,7 @@ class TrainControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/trains")
+        mockMvc.perform(post("/api/trains/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -389,7 +393,7 @@ class TrainControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/trains")
+        mockMvc.perform(post("/api/trains/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict());
@@ -397,7 +401,7 @@ class TrainControllerTest {
 
     @Test
     void deleteTrain_unknownCode_returns404() throws Exception {
-        mockMvc.perform(delete("/api/trains/TRA-NONEXISTENT"))
+        mockMvc.perform(delete("/api/trains/admin/TRA-NONEXISTENT"))
                 .andExpect(status().isNotFound());
     }
 
@@ -414,7 +418,7 @@ class TrainControllerTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/trains/TRA-NONEXISTENT")
+        mockMvc.perform(put("/api/trains/admin/TRA-NONEXISTENT")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound());

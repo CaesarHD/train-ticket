@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -218,8 +219,10 @@ class BookingServiceTest {
         train.setStopDurations(stops);
         trainRepository.save(train);
 
+        LocalDate monday = LocalDate.now().plusDays(1).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+
         ItineraryResponse result = bookingService.bookTicket(
-                req("T-OPDAY", "DepA", "ArrB", LocalDate.of(2026, 5, 11), "opday@mail.com"));
+                req("T-OPDAY", "DepA", "ArrB", monday, "opday@mail.com"));
 
         assertNotNull(result.id());
         assertEquals("opday@mail.com", result.userName());
@@ -234,9 +237,11 @@ class BookingServiceTest {
         train.setOperatingDays(EnumSet.of(DayOfWeek.MONDAY));
         trainRepository.save(train);
 
+        LocalDate tuesday = LocalDate.now().plusDays(1).with(TemporalAdjusters.next(DayOfWeek.TUESDAY));
+
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> bookingService.bookTicket(
-                        req("T-NOPDAY", "DepC", "ArrD", LocalDate.of(2026, 5, 12), "nopday@mail.com")));
+                        req("T-NOPDAY", "DepC", "ArrD", tuesday, "nopday@mail.com")));
         assertEquals("Train T-NOPDAY does not operate on TUESDAY", ex.getReason());
     }
 

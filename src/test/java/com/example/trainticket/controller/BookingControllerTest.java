@@ -75,7 +75,7 @@ class BookingControllerTest {
         var result = mockMvc.perform(get("/api/booking/routes")
                         .param("from", "Timisoara")
                         .param("to", "Bucuresti")
-                        .param("date", "2026-05-11"))
+                        .param("date", LocalDate.now().plusDays(7).toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -93,7 +93,41 @@ class BookingControllerTest {
         mockMvc.perform(get("/api/booking/routes")
                         .param("from", "Atlantis")
                         .param("to", "Bucuresti")
-                        .param("date", "2026-05-11"))
+                        .param("date", LocalDate.now().plusDays(7).toString()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void notifyDelay_withExistingBooking_returns200() throws Exception {
+        var futureDate = LocalDate.now().plusDays(30);
+
+        var bookingBody = """
+                {
+                    "segments": [
+                        {
+                            "trainCode": "TRA-001",
+                            "departureStation": "Cluj-Napoca",
+                            "arrivalStation": "Bucuresti"
+                        }
+                    ],
+                    "travelDate": "%s",
+                    "userEmail": "delay@test.com",
+                    "userName": "Delay User"
+                }
+                """.formatted(futureDate);
+
+        mockMvc.perform(post("/api/booking")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bookingBody))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/booking/admin/delay/TRA-001/{date}/30", futureDate.toString()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void notifyDelay_noTravel_returns404() throws Exception {
+        mockMvc.perform(post("/api/booking/admin/delay/TRA-001/2099-01-01/15"))
                 .andExpect(status().isNotFound());
     }
 }

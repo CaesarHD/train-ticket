@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -47,8 +48,8 @@ public class TravelService {
         int depIdx = trainStations.indexOf(route.getDeparture());
         int arrIdx = trainStations.indexOf(route.getArrival());
 
-        for (var entry : Map.copyOf(seats).entrySet()) {
-            Route r = entry.getKey();
+        Set<Route> routes = Map.copyOf(seats).keySet();
+        for (var r : routes) {
             int rDep = trainStations.indexOf(r.getDeparture());
             int rArr = trainStations.indexOf(r.getArrival());
             if (depIdx < rArr && rDep < arrIdx) {

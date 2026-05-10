@@ -138,6 +138,7 @@ public class BookingService {
         }
     }
 
+    // Dijkstra algorithm for finding the fastest route
     public List<RouteOption> findRoutes(String from, String to, LocalDate date) {
         Station departure = stationRepository.findByName(from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Station not found: " + from));
@@ -217,9 +218,13 @@ public class BookingService {
         int min = Integer.MAX_VALUE;
         for (InternalSegment seg : segments) {
             Train t = trainByCode.get(seg.trainCode());
-            if (t == null) continue;
+            if (t == null) {
+                continue;
+            }
             Route r = findMatchingRoute(allRoutes, t, seg.departureStation(), seg.arrivalStation());
-            if (r == null) continue;
+            if (r == null) {
+                continue;
+            }
             String cacheKey = t.getTrainCode() + ":" + date;
             Travel travel = travelCache.computeIfAbsent(cacheKey, k -> travelService.findOrCreate(t, date));
             min = Math.min(min, travel.getRouteSeats().getOrDefault(r, 0));
@@ -275,15 +280,34 @@ public class BookingService {
 
     public List<ItineraryResponse> getAllTrainBookings(String trainCode, LocalDate date) {
         Train train = findTrain(trainCode);
-        Travel travel = travelRepository.findByTrainAndTravelDate(train, date)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "No travel found for " + trainCode + " on " + date));
+        Travel travel = findTravel(train, date);
         return travel.getBookings().stream()
                 .map(Booking::getItinerary)
                 .filter(Objects::nonNull)
                 .distinct()
                 .map(bookingMapper::toResponse)
                 .toList();
+    }
+
+    public void notifyDelay(String trainCode, LocalDate date, int minutes) {
+        Train train = findTrain(trainCode);
+        Travel travel = findTravel(train, date);
+
+        Set<User> notified = new HashSet<>();
+        for (Booking booking : travel.getBookings()) {
+            User user = booking.getUser();
+            if (user != null && notified.add(user)) {
+                emailService.sendDelayNotification(user.getEmail(), user.getName(), trainCode, minutes);
+            }
+        }
+
+        log.info("Delay notification sent to {} users for train {} on {}", notified.size(), trainCode, date);
+    }
+
+    private Travel findTravel(Train train, LocalDate date) {
+        return travelRepository.findByTrainAndTravelDate(train, date)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No travel found for " + train.getTrainCode() + " on " + date));
     }
 
 

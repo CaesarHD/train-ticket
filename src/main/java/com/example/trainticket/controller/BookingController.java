@@ -23,7 +23,7 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    public ItineraryResponse bookTicket(@Valid @RequestBody ItineraryRequest request) {
+    public ItineraryResponse bookTicket(@RequestBody ItineraryRequest request) {
         return bookingService.bookTicket(request);
     }
 
@@ -38,5 +38,19 @@ public class BookingController {
             @RequestParam String to,
             @RequestParam LocalDate date) {
         return bookingService.findRoutes(from, to, date);
+    }
+
+    @GetMapping("/user/{id}")
+    public List<ItineraryResponse> getAllUserBookings(@PathVariable Long id) {
+        return bookingService.getAllUserBookings(id);
+    }
+
+    @PostMapping("/admin/delay/{trainCode}/{date}/{minutes}")
+    @ResponseStatus(HttpStatus.OK)
+    public void notifyDelay(
+            @PathVariable String trainCode,
+            @PathVariable String date,
+            @PathVariable int minutes) {
+        bookingService.notifyDelay(trainCode, LocalDate.parse(date), minutes);
     }
 }

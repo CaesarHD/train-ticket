@@ -31,7 +31,7 @@ public class TrainController {
         return bookingService.getAvailableTrains(from, to, date);
     }
 
-    @GetMapping("/bookings/{trainCode}")
+    @GetMapping("admin/bookings/{trainCode}")
     public List<ItineraryResponse> getAllBookings(
             @PathVariable String trainCode,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -50,18 +50,18 @@ public class TrainController {
         return TrainInfo.from(trainService.findByCode(trainCode));
     }
 
-    @PostMapping
+    @PostMapping("/admin")
     @ResponseStatus(HttpStatus.CREATED)
     public TrainInfo create(@Valid @RequestBody TrainRequest request) {
         return TrainInfo.from(trainService.create(request));
     }
 
-    @PutMapping("/{trainCode}")
+    @PutMapping("admin/{trainCode}")
     public TrainInfo update(@PathVariable String trainCode, @Valid @RequestBody TrainRequest request) {
         return TrainInfo.from(trainService.update(trainCode, request));
     }
 
-    @DeleteMapping("/{trainCode}")
+    @DeleteMapping("admin/{trainCode}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String trainCode) {
         trainService.delete(trainCode);

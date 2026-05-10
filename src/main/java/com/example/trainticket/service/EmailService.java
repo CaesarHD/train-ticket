@@ -33,4 +33,25 @@ public class EmailService {
             log.error("Failed to send email to {}: {}", toEmail, e.getMessage());
         }
     }
+
+    @Async
+    public void sendDelayNotification(String toEmail, String userName, String trainCode, int minutes) {
+        try {
+            String html = String.format(
+                    "<html><body>Hi %s, train %s is delayed by %d minutes.</body></html>",
+                    userName, trainCode, minutes);
+
+            EmailRequest emailRequest = new EmailRequest(
+                    toEmail,
+                    "Delay Notification: " + trainCode,
+                    html,
+                    ""
+            );
+
+            emailSender.sendEmail(emailRequest);
+            log.info("Delay notification sent to {} for train {}", toEmail, trainCode);
+        } catch (Exception e) {
+            log.error("Failed to send delay email to {}: {}", toEmail, e.getMessage());
+        }
+    }
 }

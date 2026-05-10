@@ -10,7 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 
-import static com.example.trainticket.util.Constants.bookingThreshold;
+import static com.example.trainticket.util.Constants.BOOKING_THRESHOLD;
 
 @Component
 @RequiredArgsConstructor
@@ -33,7 +33,7 @@ public class RouteValidator {
 
     public void validateTravelDate(Train train, LocalDate travelDate) {
         LocalDate now = LocalDate.now();
-        if(travelDate.isBefore(now) || (travelDate.getYear() - now.getYear()) > bookingThreshold) {
+        if(travelDate.isBefore(now) || (travelDate.getYear() - now.getYear()) > BOOKING_THRESHOLD) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Not a valid date" + travelDate);
         }

@@ -9,7 +9,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,9 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @Transactional
 class BookingServiceRoutingTest {
 
-    private static final LocalDate MONDAY = LocalDate.of(2026, 5, 11);
-    private static final LocalDate TUESDAY = LocalDate.of(2026, 5, 12);
-    private static final LocalDate SUNDAY = LocalDate.of(2026, 5, 10);
+    private static final LocalDate TOMORROW = LocalDate.now().plusDays(1);
+    private static final LocalDate MONDAY = TOMORROW.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+    private static final LocalDate TUESDAY = TOMORROW.with(TemporalAdjusters.next(DayOfWeek.TUESDAY));
+    private static final LocalDate SUNDAY = TOMORROW.with(TemporalAdjusters.next(DayOfWeek.SUNDAY));
 
     @Autowired
     private BookingService bookingService;
