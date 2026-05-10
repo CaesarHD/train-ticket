@@ -10,6 +10,7 @@ import java.util.*;
 @NoArgsConstructor
 @Entity
 public class Route {
+    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

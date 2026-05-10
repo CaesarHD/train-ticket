@@ -17,8 +17,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -32,6 +32,11 @@ class TrainControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    private static final String NEW_TRAIN_CODE = "TRA-TEST-001";
+    private static final List<String> ALL_DAYS = List.of(
+            "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY");
+
 
     @Test
     void getAvailableTrains_ClujToBucuresti_returnsTRA001() throws Exception {
@@ -167,4 +172,252 @@ class TrainControllerTest {
         assertThat(first.segments().get(0).departureStation()).isEqualTo("Dej");
         assertThat(first.segments().get(0).arrivalStation()).isEqualTo("Sibiu");
     }
+
+    @Test
+    void createTrain_appearsInAvailableTrains() throws Exception {
+        var date = LocalDate.now().plusDays(7);
+
+        var createBody = """
+                {
+                    "trainCode": "%s",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Turda", "Medias"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:00"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Turda": 5, "Medias": 0},
+                    "operatingDays": %s
+                }
+                """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
+
+        mockMvc.perform(post("/api/trains")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated());
+
+        var result = mockMvc.perform(get("/api/trains/available")
+                        .param("from", "Cluj-Napoca")
+                        .param("to", "Medias")
+                        .param("date", date.toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        var trains = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                new TypeReference<List<TrainResponse>>() {});
+
+        assertThat(trains).anyMatch(t -> t.trainCode().equals(NEW_TRAIN_CODE));
+    }
+
+    @Test
+    void deleteTrain_bookingFails() throws Exception {
+        var date = LocalDate.now().plusDays(7);
+
+        var createBody = """
+                {
+                    "trainCode": "%s",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Turda", "Medias"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:00"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Turda": 5, "Medias": 0},
+                    "operatingDays": %s
+                }
+                """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
+
+        mockMvc.perform(post("/api/trains")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/trains/" + NEW_TRAIN_CODE))
+                .andExpect(status().isNoContent());
+
+        var bookingBody = """
+                {
+                    "segments": [{"trainCode": "%s", "departureStation": "Cluj-Napoca", "arrivalStation": "Medias"}],
+                    "travelDate": "%s",
+                    "userEmail": "test@example.com",
+                    "userName": "Test User"
+                }
+                """.formatted(NEW_TRAIN_CODE, date);
+
+        mockMvc.perform(post("/api/booking")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bookingBody))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void modifyTrainRoute_oldRouteBookingFails() throws Exception {
+        var date = LocalDate.now().plusDays(7);
+
+        var createBody = """
+                {
+                    "trainCode": "%s",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Turda", "Medias"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:00"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Turda": 5, "Medias": 0},
+                    "operatingDays": %s
+                }
+                """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
+
+        mockMvc.perform(post("/api/trains")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated());
+
+        var updateBody = """
+                {
+                    "trainCode": "%s",
+                    "capacity": 100,
+                    "stations": ["Dej", "Gherla", "Cluj-Napoca"],
+                    "arrivals": {"Dej": "05:00", "Gherla": "05:25", "Cluj-Napoca": "06:00"},
+                    "stopDurations": {"Dej": 0, "Gherla": 2, "Cluj-Napoca": 0},
+                    "operatingDays": %s
+                }
+                """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
+
+        mockMvc.perform(put("/api/trains/" + NEW_TRAIN_CODE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBody))
+                .andExpect(status().isOk());
+
+        var oldBookingBody = """
+                {
+                    "segments": [{"trainCode": "%s", "departureStation": "Cluj-Napoca", "arrivalStation": "Medias"}],
+                    "travelDate": "%s",
+                    "userEmail": "test@example.com",
+                    "userName": "Test User"
+                }
+                """.formatted(NEW_TRAIN_CODE, date);
+
+        mockMvc.perform(post("/api/booking")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(oldBookingBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void modifyTrainRoute_newRouteBookingSucceeds() throws Exception {
+        var date = LocalDate.now().plusDays(7);
+
+        var createBody = """
+                {
+                    "trainCode": "%s",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Turda", "Medias"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:00"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Turda": 5, "Medias": 0},
+                    "operatingDays": %s
+                }
+                """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
+
+        mockMvc.perform(post("/api/trains")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated());
+
+        var updateBody = """
+                {
+                    "trainCode": "%s",
+                    "capacity": 100,
+                    "stations": ["Dej", "Gherla", "Cluj-Napoca"],
+                    "arrivals": {"Dej": "05:00", "Gherla": "05:25", "Cluj-Napoca": "06:00"},
+                    "stopDurations": {"Dej": 0, "Gherla": 2, "Cluj-Napoca": 0},
+                    "operatingDays": %s
+                }
+                """.formatted(NEW_TRAIN_CODE, objectMapper.writeValueAsString(ALL_DAYS));
+
+        mockMvc.perform(put("/api/trains/" + NEW_TRAIN_CODE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBody))
+                .andExpect(status().isOk());
+
+        var newBookingBody = """
+                {
+                    "segments": [{"trainCode": "%s", "departureStation": "Dej", "arrivalStation": "Cluj-Napoca"}],
+                    "travelDate": "%s",
+                    "userEmail": "test@example.com",
+                    "userName": "Test User"
+                }
+                """.formatted(NEW_TRAIN_CODE, date);
+
+        var result = mockMvc.perform(post("/api/booking")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newBookingBody))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var response = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                ItineraryResponse.class);
+
+        assertThat(response.segments()).hasSize(1);
+        assertThat(response.segments().get(0).trainCode()).isEqualTo(NEW_TRAIN_CODE);
+        assertThat(response.segments().get(0).departureStation()).isEqualTo("Dej");
+        assertThat(response.segments().get(0).arrivalStation()).isEqualTo("Cluj-Napoca");
+    }
+
+    @Test
+    void createTrain_unknownStation_returns400() throws Exception {
+        var body = """
+                {
+                    "trainCode": "TRA-BAD",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Atlantis"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Atlantis": "07:00"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Atlantis": 0},
+                    "operatingDays": ["MONDAY"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/trains")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createTrain_duplicateCode_returns409() throws Exception {
+        var body = """
+                {
+                    "trainCode": "TRA-001",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Turda", "Medias"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Turda": "06:30", "Medias": "07:00"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Turda": 5, "Medias": 0},
+                    "operatingDays": ["MONDAY"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/trains")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void deleteTrain_unknownCode_returns404() throws Exception {
+        mockMvc.perform(delete("/api/trains/TRA-NONEXISTENT"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateTrain_unknownCode_returns404() throws Exception {
+        var body = """
+                {
+                    "trainCode": "TRA-NONEXISTENT",
+                    "capacity": 100,
+                    "stations": ["Cluj-Napoca", "Turda"],
+                    "arrivals": {"Cluj-Napoca": "06:00", "Turda": "06:30"},
+                    "stopDurations": {"Cluj-Napoca": 0, "Turda": 0},
+                    "operatingDays": ["MONDAY"]
+                }
+                """;
+
+        mockMvc.perform(put("/api/trains/TRA-NONEXISTENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound());
+    }
+
 }

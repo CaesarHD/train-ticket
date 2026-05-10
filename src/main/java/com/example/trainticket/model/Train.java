@@ -12,6 +12,7 @@ import java.util.*;
 @NoArgsConstructor
 @Entity
 public class Train {
+    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,6 +26,7 @@ public class Train {
     private Integer capacity;
 
     @Getter
+    @Setter
     @ManyToOne
     @JoinColumn(name = "route_id")
     private Route route;
