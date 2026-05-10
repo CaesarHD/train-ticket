@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -23,11 +24,18 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Transactional
 class BookingServiceTest {
+
+    @MockBean
+    private EmailService emailService;
 
     @Autowired
     private BookingService bookingService;
@@ -230,5 +238,25 @@ class BookingServiceTest {
                 () -> bookingService.bookTicket(
                         req("T-NOPDAY", "DepC", "ArrD", LocalDate.of(2026, 5, 12), "nopday@mail.com")));
         assertEquals("Train T-NOPDAY does not operate on TUESDAY", ex.getReason());
+    }
+
+    @Test
+    void bookTicket_sendsEmailForEachBooking() {
+        int numBookings = 3;
+
+        for (int i = 0; i < numBookings; i++) {
+            bookingService.bookTicket(
+                    req("T100", "Dej", "Sighisoara", LocalDate.now(), "user" + i + "@mail.com"));
+        }
+
+        verify(emailService, times(numBookings)).sendConfirmation(any(), any(), any(), any());
+    }
+
+    @Test
+    void bookTicket_sendsEmailWithCorrectUserData() {
+        bookingService.bookTicket(
+                req("T100", "Dej", "Sighisoara", LocalDate.now(), "alice@mail.com"));
+
+        verify(emailService).sendConfirmation(eq("alice@mail.com"), eq("Alice"), any(), any());
     }
 }

@@ -5,6 +5,8 @@ import com.example.trainticket.mapper.BookingMapper;
 import com.example.trainticket.model.*;
 import com.example.trainticket.repository.*;
 import com.example.trainticket.validation.RouteValidator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,8 @@ public class BookingService {
     private final RouteValidator routeValidator;
     private final UserRepository userRepository;
     private final BookingMapper bookingMapper;
+    private final EmailService emailService;
+    private final ObjectMapper objectMapper;
 
     public ItineraryResponse bookTicket(ItineraryRequest request) {
 
@@ -61,7 +65,16 @@ public class BookingService {
                     booking.getArrivalStationName());
         }
 
-        return bookingMapper.toResponse(itinerary);
+        ItineraryResponse response = bookingMapper.toResponse(itinerary);
+
+        try {
+            String jsonData = objectMapper.writeValueAsString(response);
+            emailService.sendConfirmation(user.getEmail(), user.getName(), itinerary.getId(), jsonData);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize itinerary for email", e);
+        }
+
+        return response;
     }
 
     private User getUser(ItineraryRequest request) {
@@ -108,9 +121,13 @@ public class BookingService {
                 });
     }
 
-    private record Edge(String toStation, String trainCode, LocalDateTime departureTime, LocalDateTime arrivalTime) {}
+    private record Edge(String toStation, String trainCode, LocalDateTime departureTime, LocalDateTime arrivalTime) {
+    }
+
     private record InternalSegment(String trainCode, String departureStation, String arrivalStation,
-                                   LocalDateTime departureTime, LocalDateTime arrivalTime) {}
+                                   LocalDateTime departureTime, LocalDateTime arrivalTime) {
+    }
+
     private record Node(String station, LocalDateTime arrivalTime, List<InternalSegment> segments)
             implements Comparable<Node> {
         @Override
@@ -178,8 +195,8 @@ public class BookingService {
     }
 
     private RouteOption toRouteOption(Node node, LocalDateTime startTime, LocalDate date,
-                                       Map<String, Train> trainByCode, List<Route> allRoutes,
-                                       Map<String, Travel> travelCache) {
+                                      Map<String, Train> trainByCode, List<Route> allRoutes,
+                                      Map<String, Travel> travelCache) {
         long totalMin = Duration.between(startTime, node.arrivalTime).toMinutes();
         int transfers = Math.max(0, node.segments.size() - 1);
         int minSeats = computeMinRemainingSeats(node.segments, date, trainByCode, allRoutes, travelCache);
@@ -193,8 +210,8 @@ public class BookingService {
     }
 
     private int computeMinRemainingSeats(List<InternalSegment> segments, LocalDate date,
-                                          Map<String, Train> trainByCode, List<Route> allRoutes,
-                                          Map<String, Travel> travelCache) {
+                                         Map<String, Train> trainByCode, List<Route> allRoutes,
+                                         Map<String, Travel> travelCache) {
         int min = Integer.MAX_VALUE;
         for (InternalSegment seg : segments) {
             Train t = trainByCode.get(seg.trainCode());
@@ -209,7 +226,7 @@ public class BookingService {
     }
 
     private List<InternalSegment> appendSegment(List<InternalSegment> segments, Edge edge,
-                                                 String currentStation, boolean sameTrain) {
+                                                String currentStation, boolean sameTrain) {
         List<InternalSegment> newSegments = new ArrayList<>(segments);
         if (sameTrain && !newSegments.isEmpty()) {
             InternalSegment last = newSegments.remove(newSegments.size() - 1);
